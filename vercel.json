@@ -1,0 +1,11 @@
+{
+  "functions": {
+    "api/**/*.ts": {
+      "maxDuration": 60,
+      "includeFiles": "{assets/**,config/**}"
+    }
+  },
+  "crons": [
+    { "path": "/api/monitor", "schedule": "30 1 * * *" }
+  ]
+}
