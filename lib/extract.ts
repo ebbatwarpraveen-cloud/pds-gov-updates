@@ -66,7 +66,35 @@ export function aiProvider(): 'gemini' | 'anthropic' | 'none' {
   return 'none';
 }
 
-const geminiModel = () => env('GEMINI_MODEL', 'gemini-2.5-flash');
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+let resolvedModel = '';
+let lastModelUsed = '';
+
+/** Ask Google which models this key can use and pick the newest stable Flash model. */
+export async function discoverGeminiModel(): Promise<string> {
+  const res = await fetch(`${GEMINI_BASE}/models?pageSize=200`, { headers: { 'x-goog-api-key': env('GEMINI_API_KEY') } });
+  if (!res.ok) throw new Error(`Gemini model list failed: HTTP ${res.status}`);
+  const j: any = await res.json();
+  const names: string[] = (j.models ?? [])
+    .filter((m: any) => (m.supportedGenerationMethods ?? []).includes('generateContent'))
+    .map((m: any) => String(m.name).replace(/^models\//, ''));
+  const score = (n: string): number | null => {
+    const m = n.match(/^gemini-(\d+(?:\.\d+)?)-flash(-lite)?$/); // stable names only (no preview / exp / live / tts / image)
+    if (!m) return null;
+    return parseFloat(m[1]) * 10 + (m[2] ? 0 : 5); // newer version first, full Flash before Flash-Lite
+  };
+  const ranked = names.map((n) => ({ n, s: score(n) })).filter((x): x is { n: string; s: number } => x.s !== null).sort((x, y) => y.s - x.s);
+  if (!ranked.length) throw new Error('No Gemini Flash model is available for this key');
+  return ranked[0].n;
+}
+
+async function geminiModelName(force = false): Promise<string> {
+  const configured = env('GEMINI_MODEL', 'auto');
+  if (!force && configured && configured.toLowerCase() !== 'auto') return configured;
+  if (!force && resolvedModel) return resolvedModel;
+  resolvedModel = await discoverGeminiModel();
+  return resolvedModel;
+}
 
 // Gemini's free tier allows only a few requests per minute: keep a gap between calls.
 let lastGeminiCall = 0;
@@ -91,56 +119,62 @@ function geminiSchema() {
   };
 }
 
-async function callGemini(system: string, user: string, maxOutputTokens = 3000): Promise<unknown> {
-  const key = env('GEMINI_API_KEY');
-  const model = geminiModel();
+/** One Gemini call with: pacing for the free tier, retry on 429/5xx, and automatic model fallback on 404. */
+async function geminiGenerate(buildBody: (model: string) => object): Promise<{ status: number; body: string; model: string }> {
   const gap = parseInt(env('AI_MIN_INTERVAL_MS', '6500'), 10) || 0;
-  const generationConfig: Record<string, unknown> = {
-    temperature: 0,
-    maxOutputTokens,
-    responseMimeType: 'application/json',
-    responseSchema: geminiSchema(),
-  };
-  if (/gemini-2\.5/.test(model)) generationConfig.thinkingConfig = { thinkingBudget: 0 };
-
-  let lastErr = '';
-  for (let attempt = 0; attempt < 3; attempt++) {
+  let model = await geminiModelName();
+  let rediscovered = false;
+  let last = { status: 0, body: '', model };
+  for (let attempt = 0; attempt < 4; attempt++) {
     const wait = lastGeminiCall + gap - Date.now();
     if (wait > 0) await sleep(wait);
     lastGeminiCall = Date.now();
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+    const res = await fetch(`${GEMINI_BASE}/models/${encodeURIComponent(model)}:generateContent`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: system }] },
-        contents: [{ role: 'user', parts: [{ text: user }] }],
-        generationConfig,
-      }),
+      headers: { 'content-type': 'application/json', 'x-goog-api-key': env('GEMINI_API_KEY') },
+      body: JSON.stringify(buildBody(model)),
     });
-    const body = await res.text();
-    if (res.ok) {
-      let j: any;
-      try {
-        j = JSON.parse(body);
-      } catch {
-        throw new Error('Gemini returned an unreadable response');
-      }
-      const text = j?.candidates?.[0]?.content?.parts?.map((p: any) => p.text ?? '').join('') ?? '';
-      if (!text) throw new Error('Gemini returned no content' + (j?.promptFeedback?.blockReason ? ` (blocked: ${j.promptFeedback.blockReason})` : ''));
-      try {
-        return JSON.parse(text);
-      } catch {
-        throw new Error('Gemini returned invalid JSON');
-      }
-    }
-    lastErr = `Gemini HTTP ${res.status}: ${body.slice(0, 200)}`;
-    if (res.status === 429 || res.status >= 500) {
-      await sleep(Math.min(20_000, 4000 * 2 ** attempt)); // free-tier rate limit: wait, then retry
+    last = { status: res.status, body: await res.text(), model };
+    lastModelUsed = model;
+    if (res.ok) return last;
+    if (res.status === 404 && !rediscovered) {
+      rediscovered = true;
+      model = await geminiModelName(true); // configured model retired -> use the newest available one
       continue;
     }
-    break; // 400/401/403/404 – retrying will not help
+    if (res.status === 429 || res.status >= 500) {
+      await sleep(Math.min(20_000, 4000 * 2 ** attempt));
+      continue;
+    }
+    break;
   }
-  throw new Error(lastErr || 'Gemini request failed');
+  return last;
+}
+
+async function callGemini(system: string, user: string, maxOutputTokens = 3000): Promise<unknown> {
+  const r = await geminiGenerate((model) => {
+    const generationConfig: Record<string, unknown> = { temperature: 0, maxOutputTokens, responseMimeType: 'application/json', responseSchema: geminiSchema() };
+    if (/gemini-2\.5/.test(model)) generationConfig.thinkingConfig = { thinkingBudget: 0 };
+    return {
+      systemInstruction: { parts: [{ text: system }] },
+      contents: [{ role: 'user', parts: [{ text: user }] }],
+      generationConfig,
+    };
+  });
+  if (r.status < 200 || r.status >= 300) throw new Error(`Gemini HTTP ${r.status}: ${r.body.slice(0, 200)}`);
+  let j: any;
+  try {
+    j = JSON.parse(r.body);
+  } catch {
+    throw new Error('Gemini returned an unreadable response');
+  }
+  const text = j?.candidates?.[0]?.content?.parts?.map((p: any) => p.text ?? '').join('') ?? '';
+  if (!text) throw new Error('Gemini returned no content' + (j?.promptFeedback?.blockReason ? ` (blocked: ${j.promptFeedback.blockReason})` : ''));
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error('Gemini returned invalid JSON');
+  }
 }
 
 /** Tiny test call used by /api/health?ai=1 to confirm the key and model work. */
@@ -149,21 +183,19 @@ export async function pingAI(): Promise<{ ok: boolean; provider: string; note: s
   if (provider === 'none') return { ok: false, provider, note: 'No AI key set (GEMINI_API_KEY or ANTHROPIC_API_KEY)' };
   try {
     if (provider === 'gemini') {
-      const key = env('GEMINI_API_KEY');
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel())}:generateContent`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
-        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: 'Reply with the single word: ok' }] }], generationConfig: { maxOutputTokens: 20 } }),
-      });
-      return { ok: res.ok, provider, note: res.ok ? `model ${geminiModel()} reachable` : `HTTP ${res.status}: ${(await res.text()).slice(0, 160)}` };
+      const r = await geminiGenerate(() => ({ contents: [{ role: 'user', parts: [{ text: 'Reply with the single word: ok' }] }], generationConfig: { maxOutputTokens: 20 } }));
+      const ok = r.status >= 200 && r.status < 300;
+      return { ok, provider, note: ok ? `model ${r.model} works` : `HTTP ${r.status}: ${r.body.slice(0, 160)}` };
     }
     const client = new Anthropic({ apiKey: env('ANTHROPIC_API_KEY') });
     await client.messages.create({ model: cfg.model(), max_tokens: 10, messages: [{ role: 'user', content: 'ok' }] });
-    return { ok: true, provider, note: `model ${cfg.model()} reachable` };
+    return { ok: true, provider, note: `model ${cfg.model()} works` };
   } catch (e) {
     return { ok: false, provider, note: String(e instanceof Error ? e.message : e).slice(0, 200) };
   }
 }
+
+export const lastGeminiModel = () => lastModelUsed;
 
 export async function extractNotification(input: {
   sourceName: string;
