@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { cfg, env } from '../lib/config.js';
+import { aiProvider, pingAI } from '../lib/extract.js';
 import { one, q } from '../lib/db.js';
 import { deny, esc, isAdmin, qs } from '../lib/http.js';
 import { whatsappConfigured } from '../lib/whatsapp.js';
@@ -35,7 +36,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     out.failing_sources = await q('SELECT id, name, last_error, consecutive_failures FROM sources WHERE consecutive_failures>=3 ORDER BY consecutive_failures DESC LIMIT 10');
     out.last_run = run;
   }
-  checks.ai = { ok: !!env('ANTHROPIC_API_KEY'), note: env('ANTHROPIC_API_KEY') ? 'key set' : 'ANTHROPIC_API_KEY missing' };
+  if (qs(req, 'ai') === '1') {
+    const p = await pingAI();
+    checks.ai = { ok: p.ok, note: `${p.provider}: ${p.note}` };
+  } else {
+    checks.ai = { ok: aiProvider() !== 'none', note: aiProvider() === 'none' ? 'No AI key (set GEMINI_API_KEY – free)' : `${aiProvider()} key set (add &ai=1 to test it)` };
+  }
   checks.firecrawl = { ok: true, note: env('FIRECRAWL_API_KEY') ? 'fallback enabled' : 'not set (direct fetch only)' };
   checks.secrets = { ok: !!(env('LINK_SECRET') && env('WEBHOOK_SECRET') && env('PUBLIC_BASE_URL')), note: 'LINK_SECRET / WEBHOOK_SECRET / PUBLIC_BASE_URL' };
   checks.group_sending = { ok: true, note: cfg.groupSendEnabled() ? 'Groups API enabled' : 'manual share (default)' };
