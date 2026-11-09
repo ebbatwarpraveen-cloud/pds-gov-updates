@@ -67,12 +67,17 @@ export function aiProvider(): 'gemini' | 'anthropic' | 'none' {
 }
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
-let resolvedModel = '';
+let ranked: string[] = []; // usable models, best first (filled on demand)
+let rankIdx = 0;
+let autoMode = true;
+let modeInit = false;
 let lastModelUsed = '';
 
-/** Ask Google which models this key can use and pick the newest stable Flash model. */
-export async function discoverGeminiModel(): Promise<string> {
-  const res = await fetch(`${GEMINI_BASE}/models?pageSize=200`, { headers: { 'x-goog-api-key': env('GEMINI_API_KEY') } });
+const gfetch = (url: string, init: RequestInit = {}) => fetch(url, { ...init, signal: AbortSignal.timeout(20_000) });
+
+/** Ask Google which models this key can use; stable Flash models only, newest first. */
+export async function discoverGeminiModels(): Promise<string[]> {
+  const res = await gfetch(`${GEMINI_BASE}/models?pageSize=200`, { headers: { 'x-goog-api-key': env('GEMINI_API_KEY') } });
   if (!res.ok) throw new Error(`Gemini model list failed: HTTP ${res.status}`);
   const j: any = await res.json();
   const names: string[] = (j.models ?? [])
@@ -80,20 +85,47 @@ export async function discoverGeminiModel(): Promise<string> {
     .map((m: any) => String(m.name).replace(/^models\//, ''));
   const score = (n: string): number | null => {
     const m = n.match(/^gemini-(\d+(?:\.\d+)?)-flash(-lite)?$/); // stable names only (no preview / exp / live / tts / image)
-    if (!m) return null;
-    return parseFloat(m[1]) * 10 + (m[2] ? 0 : 5); // newer version first, full Flash before Flash-Lite
+    return m ? parseFloat(m[1]) * 10 + (m[2] ? 0 : 5) : null;
   };
-  const ranked = names.map((n) => ({ n, s: score(n) })).filter((x): x is { n: string; s: number } => x.s !== null).sort((x, y) => y.s - x.s);
-  if (!ranked.length) throw new Error('No Gemini Flash model is available for this key');
-  return ranked[0].n;
+  const list = names
+    .map((n) => ({ n, s: score(n) }))
+    .filter((x): x is { n: string; s: number } => x.s !== null)
+    .sort((x, y) => y.s - x.s)
+    .map((x) => x.n);
+  if (!list.length) throw new Error('No Gemini Flash model is available for this key');
+  return list;
 }
 
-async function geminiModelName(force = false): Promise<string> {
+/** Re-read settings (used by tests). */
+export function resetGeminiState() {
+  ranked = [];
+  rankIdx = 0;
+  modeInit = false;
+}
+
+async function currentGeminiModel(): Promise<string> {
   const configured = env('GEMINI_MODEL', 'auto');
-  if (!force && configured && configured.toLowerCase() !== 'auto') return configured;
-  if (!force && resolvedModel) return resolvedModel;
-  resolvedModel = await discoverGeminiModel();
-  return resolvedModel;
+  if (!modeInit) {
+    autoMode = configured.toLowerCase() === 'auto';
+    modeInit = true;
+  }
+  if (!autoMode) return configured;
+  if (!ranked.length) ranked = await discoverGeminiModels();
+  return ranked[Math.min(rankIdx, ranked.length - 1)];
+}
+
+/** Move to the next model. Returns false when there is nothing left to try. */
+async function nextGeminiModel(): Promise<boolean> {
+  if (!autoMode) {
+    autoMode = true; // the fixed model is gone -> switch to automatic selection
+    rankIdx = 0;
+    if (!ranked.length) ranked = await discoverGeminiModels();
+    return true;
+  }
+  if (!ranked.length) ranked = await discoverGeminiModels();
+  if (rankIdx + 1 >= ranked.length) return false;
+  rankIdx++;
+  return true;
 }
 
 // Gemini's free tier allows only a few requests per minute: keep a gap between calls.
@@ -119,31 +151,41 @@ function geminiSchema() {
   };
 }
 
-/** One Gemini call with: pacing for the free tier, retry on 429/5xx, and automatic model fallback on 404. */
-async function geminiGenerate(buildBody: (model: string) => object): Promise<{ status: number; body: string; model: string }> {
+/** One Gemini call: paced for the free tier, short retries on 429/5xx, switches model when it is retired (404) or has no free quota. */
+async function geminiGenerate(buildBody: (model: string) => object, maxAttempts = 2): Promise<{ status: number; body: string; model: string }> {
   const gap = parseInt(env('AI_MIN_INTERVAL_MS', '6500'), 10) || 0;
-  let model = await geminiModelName();
-  let rediscovered = false;
-  let last = { status: 0, body: '', model };
-  for (let attempt = 0; attempt < 4; attempt++) {
+  let last = { status: 0, body: '', model: '' };
+  let attempts = 0;
+  let switches = 0;
+  while (attempts < maxAttempts && switches < 4) {
+    const model = await currentGeminiModel();
     const wait = lastGeminiCall + gap - Date.now();
     if (wait > 0) await sleep(wait);
     lastGeminiCall = Date.now();
-    const res = await fetch(`${GEMINI_BASE}/models/${encodeURIComponent(model)}:generateContent`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-goog-api-key': env('GEMINI_API_KEY') },
-      body: JSON.stringify(buildBody(model)),
-    });
+    let res: Response;
+    try {
+      res = await gfetch(`${GEMINI_BASE}/models/${encodeURIComponent(model)}:generateContent`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-goog-api-key': env('GEMINI_API_KEY') },
+        body: JSON.stringify(buildBody(model)),
+      });
+    } catch (e) {
+      last = { status: 0, body: 'network/timeout: ' + (e instanceof Error ? e.message : String(e)), model };
+      attempts++;
+      continue;
+    }
     last = { status: res.status, body: await res.text(), model };
     lastModelUsed = model;
     if (res.ok) return last;
-    if (res.status === 404 && !rediscovered) {
-      rediscovered = true;
-      model = await geminiModelName(true); // configured model retired -> use the newest available one
-      continue;
+    const noFreeQuota = res.status === 429 && /limit:\s*0\b/.test(last.body);
+    if (res.status === 404 || noFreeQuota) {
+      switches++;
+      if (await nextGeminiModel()) continue;
+      break;
     }
-    if (res.status === 429 || res.status >= 500) {
-      await sleep(Math.min(20_000, 4000 * 2 ** attempt));
+    attempts++;
+    if ((res.status === 429 || res.status >= 500) && attempts < maxAttempts) {
+      await sleep(8000);
       continue;
     }
     break;
@@ -183,7 +225,7 @@ export async function pingAI(): Promise<{ ok: boolean; provider: string; note: s
   if (provider === 'none') return { ok: false, provider, note: 'No AI key set (GEMINI_API_KEY or ANTHROPIC_API_KEY)' };
   try {
     if (provider === 'gemini') {
-      const r = await geminiGenerate(() => ({ contents: [{ role: 'user', parts: [{ text: 'Reply with the single word: ok' }] }], generationConfig: { maxOutputTokens: 20 } }));
+      const r = await geminiGenerate(() => ({ contents: [{ role: 'user', parts: [{ text: 'Reply with the single word: ok' }] }], generationConfig: { maxOutputTokens: 20 } }), 1);
       const ok = r.status >= 200 && r.status < 300;
       return { ok, provider, note: ok ? `model ${r.model} works` : `HTTP ${r.status}: ${r.body.slice(0, 160)}` };
     }
