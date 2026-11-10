@@ -1,6 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { cfg, env } from '../lib/config.js';
+import { activeChannel, telegramChatId } from '../lib/channel.js';
 import { aiProvider, pingAI } from '../lib/extract.js';
+import { telegramTokenSet } from '../lib/telegram.js';
 import { one, q } from '../lib/db.js';
 import { deny, esc, isAdmin, qs } from '../lib/http.js';
 import { whatsappConfigured } from '../lib/whatsapp.js';
@@ -29,7 +31,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     checks.sources = { ok: src.total > 0 && src.failing <= Math.ceil(src.total * 0.3), note: `${src.ok}/${src.total} OK, ${src.failing} failing, ${src.never} not checked yet` };
     const st = await q<{ status: string; c: number }>('SELECT status, count(*)::int c FROM notifications GROUP BY status');
     const del = await one<any>(`SELECT count(*) FILTER (WHERE status='failed' AND created_at>now()-interval '2 days')::int failed, count(*) FILTER (WHERE kind='alert' AND created_at>now()-interval '2 days')::int alerts FROM deliveries`);
-    checks.whatsapp = { ok: whatsappConfigured() && !!env('GUPSHUP_ALERT_TEMPLATE_ID') && del.failed === 0, note: whatsappConfigured() ? `${del.alerts} alerts in 2 days, ${del.failed} failed` : 'Gupshup not configured' };
+    const ch = await activeChannel();
+    checks.alerts = { ok: ch !== 'none' && del.failed === 0, note: ch === 'none' ? 'No channel set up: pair Telegram (/api/telegram-setup) or configure WhatsApp' : `via ${ch}; ${del.alerts} alerts in 2 days, ${del.failed} failed sends` };
+    checks.telegram = { ok: true, note: telegramTokenSet() ? ((await telegramChatId()) ? 'paired' : 'bot token set, not paired yet') : 'not used' };
+    checks.whatsapp = { ok: true, note: whatsappConfigured() ? 'Gupshup configured (backup channel)' : 'not used' };
     const pending = st.filter((x) => ['alerted', 'poster_ready', 'verified', 'alert_failed'].includes(x.status)).reduce((a, b) => a + b.c, 0);
     out.notifications = Object.fromEntries(st.map((x) => [x.status, x.c]));
     out.waiting_for_you = pending;
