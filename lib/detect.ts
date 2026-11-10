@@ -34,17 +34,19 @@ export interface Candidate {
  * First time a source is checked => "baseline": remember everything, alert nothing
  * (otherwise the owner would receive hundreds of old notifications).
  */
+export const floodLimit = () => parseInt(process.env.NEW_LINKS_FLOOD_LIMIT || '', 10) || 30;
+
 export async function findNewCandidates(
   sourceId: string,
   links: PageLink[],
   baselined: boolean,
-): Promise<{ candidates: Candidate[]; baselineJustDone: boolean }> {
+): Promise<{ candidates: Candidate[]; baselineJustDone: boolean; flood: number }> {
   const relevant = links.filter(isCandidateLink);
   const withHash = relevant.map((l) => ({ link: l, hash: linkHash(l) }));
   const uniq = new Map<string, Candidate>();
   withHash.forEach((c) => uniq.set(c.hash, c));
   const all = [...uniq.values()];
-  if (all.length === 0) return { candidates: [], baselineJustDone: false };
+  if (all.length === 0) return { candidates: [], baselineJustDone: false, flood: 0 };
 
   const existing = await q<{ link_hash: string }>('SELECT link_hash FROM seen_links WHERE source_id=$1 AND link_hash = ANY($2)', [
     sourceId,
@@ -61,6 +63,9 @@ export async function findNewCandidates(
       c.link.href,
     ]);
   }
-  if (!baselined) return { candidates: [], baselineJustDone: true };
-  return { candidates: fresh, baselineJustDone: false };
+  if (!baselined) return { candidates: [], baselineJustDone: true, flood: 0 };
+  // Dozens of "new" links at once almost always means the site changed its layout or uses changing URLs.
+  // They are remembered silently (no spam, no wasted AI calls) and the owner gets one warning.
+  if (fresh.length > floodLimit()) return { candidates: [], baselineJustDone: false, flood: fresh.length };
+  return { candidates: fresh, baselineJustDone: false, flood: 0 };
 }

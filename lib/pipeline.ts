@@ -172,7 +172,7 @@ export async function recheckRecent(limit = 3): Promise<number> {
   return updated;
 }
 
-export async function checkSource(source: SourceRow): Promise<{ ok: boolean; candidates: Candidate[]; baseline: boolean }> {
+export async function checkSource(source: SourceRow): Promise<{ ok: boolean; candidates: Candidate[]; baseline: boolean; flood?: number }> {
   const page = await fetchPage(source.url);
   if (!page.ok) {
     await q(
@@ -181,12 +181,15 @@ export async function checkSource(source: SourceRow): Promise<{ ok: boolean; can
     );
     return { ok: false, candidates: [], baseline: false };
   }
-  const { candidates, baselineJustDone } = await findNewCandidates(source.id, page.links, source.baselined);
+  const { candidates, baselineJustDone, flood } = await findNewCandidates(source.id, page.links, source.baselined);
   await q(
     `UPDATE sources SET last_checked_at=now(), last_ok_at=now(), last_status='ok', last_error=NULL, consecutive_failures=0, baselined=true WHERE id=$1`,
     [source.id],
   );
-  return { ok: true, candidates, baseline: baselineJustDone };
+  if (flood > 0) {
+    await alertOwnerError(`${source.name}: ${flood} new links appeared at once. Treated as a website layout change and skipped (nothing was missed silently - tell me if this site really published that many notifications).`);
+  }
+  return { ok: true, candidates, baseline: baselineJustDone, flood };
 }
 
 /* ------------------------------ alerts ------------------------------ */
