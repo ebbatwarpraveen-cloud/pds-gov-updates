@@ -39,6 +39,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     out.notifications = Object.fromEntries(st.map((x) => [x.status, x.c]));
     out.waiting_for_you = pending;
     out.failing_sources = await q('SELECT id, name, last_error, consecutive_failures FROM sources WHERE consecutive_failures>=3 ORDER BY consecutive_failures DESC LIMIT 10');
+    out.sources_with_errors = await q(`SELECT id, name, left(last_error, 120) AS last_error, consecutive_failures FROM sources WHERE last_status='error' ORDER BY consecutive_failures DESC, name LIMIT 40`);
+    out.recent_failed_sends = await q(`SELECT kind, notification_id, left(error, 160) AS error, created_at FROM deliveries WHERE status='failed' ORDER BY id DESC LIMIT 5`);
     out.last_run = run;
   }
   if (qs(req, 'ai') === '1') {
@@ -65,6 +67,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 <body style="font-family:system-ui,'Noto Sans Telugu';margin:0;background:#fff8ec"><div style="background:${color};color:#fff;padding:18px"><h2 style="margin:0">PDS Monitoring: ${status}</h2><div>${te}</div></div>
 <div style="padding:14px"><p><b>మీ నిర్ణయం కోసం వేచి ఉన్నవి:</b> ${out.waiting_for_you ?? '-'}</p>
 ${Object.entries(checks).map(([k, c]) => `<p>${c.ok ? '✅' : '❌'} <b>${esc(k)}</b> — ${esc(c.note)}</p>`).join('')}
-${(out.failing_sources ?? []).length ? '<h3>Websites not opening</h3>' + out.failing_sources.map((s: any) => `<p>${esc(s.name)}: ${esc(s.last_error)}</p>`).join('') : ''}
+${(out.recent_failed_sends ?? []).length ? '<h3>Failed sends</h3>' + out.recent_failed_sends.map((s: any) => `<p>${esc(s.kind)} #${esc(s.notification_id)}: ${esc(s.error)}</p>`).join('') : ''}
+${(out.sources_with_errors ?? []).length ? `<h3>Websites not opening now (${out.sources_with_errors.length})</h3>` + out.sources_with_errors.map((s: any) => `<p>${esc(s.name)}: ${esc(s.last_error)}</p>`).join('') : ''}
 <small>${esc(out.time)}</small></div></body>`);
 }
