@@ -1,15 +1,15 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { cfg, env, NOT_MENTIONED } from './config.js';
+import { cfg, NOT_MENTIONED } from './config.js';
 import { one, q } from './db.js';
 import { findNewCandidates, type Candidate } from './detect.js';
 import { extractNotification, type FieldName } from './extract.js';
 import { fetchPage } from './fetcher.js';
 import { log } from './log.js';
-import { templateParams, fullAlertText, type NotificationRow } from './messages.js';
+import { fullAlertText, type NotificationRow } from './messages.js';
 import { changedFields, contentHash, fingerprintTitle, fingerprintUrl, verifyExtraction } from './verify.js';
-import { sendTemplate, sendText, tracked, whatsappConfigured } from './whatsapp.js';
+import { activeChannel, sendOwnerAlert, sendOwnerText } from './channel.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -194,14 +194,12 @@ export async function checkSource(source: SourceRow): Promise<{ ok: boolean; can
 export async function sendAlert(id: number): Promise<boolean> {
   const n = await one<NotificationRow>('SELECT * FROM notifications WHERE id=$1', [id]);
   if (!n) return false;
-  const owner = cfg.owner();
-  const tpl = env('GUPSHUP_ALERT_TEMPLATE_ID');
-  if (!whatsappConfigured() || !tpl) {
+  if ((await activeChannel()) === 'none') {
     await q(`UPDATE notifications SET status='verified', updated_at=now() WHERE id=$1`, [id]);
-    await log('warn', 'alert', 'WhatsApp alert not sent: Gupshup / template not configured', { id });
+    await log('warn', 'alert', 'Alert not sent: no notification channel (Telegram / WhatsApp) is set up yet', { id });
     return false;
   }
-  const r = await tracked(id, 'alert', owner, () => sendTemplate(owner, tpl, templateParams(n)));
+  const r = await sendOwnerAlert(n);
   if (r.ok) {
     await q(`UPDATE notifications SET status='alerted', alert_message_id=$2, updated_at=now() WHERE id=$1`, [id, r.messageId ?? null]);
     return true;
@@ -223,12 +221,10 @@ export async function retryUnsent(): Promise<number> {
   return sent;
 }
 
-/** Error alerts to the owner (works inside the 24h window; always logged). */
+/** Error alerts to the owner (always logged). */
 export async function alertOwnerError(message: string): Promise<void> {
   await log('error', 'health', message);
-  const owner = cfg.owner();
-  if (!owner) return;
-  await tracked(null, 'error', owner, () => sendText(owner, `⚠️ PDS monitor alert\n${message}`)).catch(() => undefined);
+  await sendOwnerText(null, 'error', `⚠️ PDS monitor alert\n${message}`).catch(() => undefined);
 }
 
 export { fullAlertText };

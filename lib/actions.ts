@@ -2,9 +2,10 @@ import { cfg, NOT_MENTIONED } from './config.js';
 import { one, q } from './db.js';
 import type { FieldName } from './extract.js';
 import { log } from './log.js';
-import { buildCaption, fullAlertText, POSTER_MENU, posterLink, privateLink, verifyText, type NotificationRow } from './messages.js';
+import { sendOwnerPoster, sendOwnerPosterMenu, sendOwnerText } from './channel.js';
+import { buildCaption, fullAlertText, posterLink, privateLink, verifyText, type NotificationRow } from './messages.js';
 import { renderPoster } from './poster.js';
-import { sendGroupText, sendImage, sendText, tracked } from './whatsapp.js';
+import { sendGroupText, tracked } from './whatsapp.js';
 
 export type Action = 'ACCEPT' | 'REJECT' | 'VERIFY' | 'SEND_TO_GROUP' | 'SAVE' | 'CANCEL' | 'REGENERATE';
 
@@ -38,31 +39,27 @@ async function latestPoster(notificationId: number) {
   return one<{ id: number; caption: string; version: number }>('SELECT id, caption, version FROM posters WHERE notification_id=$1 ORDER BY id DESC LIMIT 1', [notificationId]);
 }
 
-export async function makePoster(n: NotificationRow): Promise<{ id: number; caption: string }> {
+export async function makePoster(n: NotificationRow): Promise<{ id: number; caption: string; png: Buffer }> {
   const png = await renderPoster({ headline_te: n.data.headline_te ?? '', fields: n.data.fields as Record<FieldName, string>, isUpdate: n.is_update, changed: n.data.changed });
   const caption = buildCaption(n);
   const prev = await latestPoster(n.id);
   const r = await q<{ id: number }>('INSERT INTO posters(notification_id, version, png, caption) VALUES ($1,$2,$3,$4) RETURNING id', [n.id, (prev?.version ?? 0) + 1, png, caption]);
-  return { id: r[0].id, caption };
+  return { id: r[0].id, caption, png };
 }
 
-async function deliverPoster(n: NotificationRow, posterId: number, caption: string, via: 'whatsapp' | 'web') {
-  const owner = cfg.owner();
-  const url = posterLink(posterId);
-  await tracked(n.id, 'poster', owner, () => sendImage(owner, url, 'PDS Poster #' + n.id));
-  await tracked(n.id, 'caption', owner, () => sendText(owner, caption));
-  await tracked(n.id, 'menu', owner, () => sendText(owner, POSTER_MENU + `\n\n(ID #${n.id}) Web: ${privateLink(n.id)}`));
-  void via;
+async function deliverPoster(n: NotificationRow, posterId: number, caption: string, png: Buffer) {
+  await sendOwnerPoster(n, posterId, png);
+  await sendOwnerText(n.id, 'caption', caption);
+  await sendOwnerPosterMenu(n);
 }
 
 /** The single place where ACCEPT / REJECT / VERIFY and poster options are applied (WhatsApp or web page). */
-export async function performAction(id: number, action: Action, via: 'whatsapp' | 'web'): Promise<ActionResult> {
+export async function performAction(id: number, action: Action, via: 'whatsapp' | 'telegram' | 'web'): Promise<ActionResult> {
   const n = await one<NotificationRow>('SELECT * FROM notifications WHERE id=$1', [id]);
   if (!n) return { ok: false, message: `Notification #${id} not found.` };
-  const owner = cfg.owner();
   const st = n.status;
   const reply = async (text: string) => {
-    if (via === 'whatsapp') await tracked(id, 'menu', owner, () => sendText(owner, text));
+    if (via !== 'web') await sendOwnerText(id, 'menu', text);
   };
 
   // --- decision stage ---
@@ -70,9 +67,9 @@ export async function performAction(id: number, action: Action, via: 'whatsapp' 
     if (action === 'ACCEPT') {
       await q(`UPDATE notifications SET status='accepted', updated_at=now() WHERE id=$1`, [id]);
       try {
-        const { id: pid, caption } = await makePoster(n);
+        const { id: pid, caption, png } = await makePoster(n);
         await q(`UPDATE notifications SET status='poster_ready', updated_at=now() WHERE id=$1`, [id]);
-        await deliverPoster(n, pid, caption, via);
+        await deliverPoster(n, pid, caption, png);
         return { ok: true, message: 'Accepted. Poster and caption created.', posterId: pid };
       } catch (e) {
         await q(`UPDATE notifications SET status='alerted', updated_at=now() WHERE id=$1`, [id]);
@@ -98,8 +95,8 @@ export async function performAction(id: number, action: Action, via: 'whatsapp' 
   if (st === 'poster_ready' || st === 'saved') {
     const p = await latestPoster(id);
     if (action === 'REGENERATE') {
-      const { id: pid, caption } = await makePoster(n);
-      await deliverPoster(n, pid, caption, via);
+      const { id: pid, caption, png } = await makePoster(n);
+      await deliverPoster(n, pid, caption, png);
       return { ok: true, message: 'New poster created.', posterId: pid };
     }
     if (action === 'SAVE') {
@@ -121,7 +118,7 @@ export async function performAction(id: number, action: Action, via: 'whatsapp' 
         return { ok: true, message: 'Caption sent to group.', posterId: p?.id };
       }
       await reply(
-        `📤 WhatsApp does not allow this system to post into your existing groups.\nShare manually in 2 taps:\n${privateLink(id)}\n(Open → "Share Poster" → choose your group)`,
+        `📤 WhatsApp does not allow this system to post into your existing groups.\nShare manually in 2 taps:\n${privateLink(id)}\n(Open → "Share Poster" → choose your group). Or press and hold the poster here → Forward / Share → WhatsApp.`,
       );
       return { ok: true, message: 'Direct group posting is unavailable. Use "Share Poster" to send it to your group from your phone.', posterId: p?.id };
     }
