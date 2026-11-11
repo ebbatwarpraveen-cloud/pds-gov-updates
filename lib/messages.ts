@@ -21,35 +21,41 @@ const has = (v?: string) => !!v && v !== NOT_MENTIONED;
 export const privateLink = (id: number) => `${cfg.baseUrl()}/api/n?id=${id}&t=${sign('n:' + id)}`;
 export const posterLink = (posterId: number) => `${cfg.baseUrl()}/api/poster?id=${posterId}&t=${sign('p:' + posterId)}`;
 
-/** Complete private alert (owner only – contains the official application links). */
+/** Complete private alert (owner only – contains the official application links). Missing details are listed in ONE line. */
 export function fullAlertText(n: NotificationRow): string {
   const f = n.data.fields;
-  const L = (label: string, v: string) => `*${label}:*\n${v}\n`;
   const head = n.is_update ? '🔄 *UPDATED GOVERNMENT NOTIFICATION*' : '🔔 *NEW GOVERNMENT UPDATE*';
   const changed = n.is_update && n.data.changed?.length ? `\n_Changed: ${n.data.changed.join(', ')}_\n` : '';
+  const items: [string, string][] = [
+    ['Department', f.department],
+    ['Notification', f.title],
+    ['Posts', f.post_names],
+    ['Vacancies', f.vacancies],
+    ['Eligibility', f.eligibility],
+    ['Age Limit', f.age_limit],
+    ['Qualification', f.qualification],
+    ['Required Documents', f.required_documents],
+    ['Application Start', f.application_start],
+    ['Last Date', f.last_date],
+    ['Exam Date', f.exam_date],
+    ['Fee', f.application_fee],
+    ['Category-wise Fee', f.category_fee],
+    ['Selection Process', f.selection_process],
+    ['Revised Dates', f.revised_dates],
+    ['Deadline Extension', f.deadline_extension],
+    ['Important Notes', f.important_instructions],
+    ['Official Application Process', f.application_process],
+    ['Official Application URL', f.application_url],
+  ];
+  const present = items.filter(([, v]) => has(v)).map(([l, v]) => `*${l}:*\n${v}\n`);
+  const missing = items.filter(([, v]) => !has(v)).map(([l]) => l);
+  const notifLink = f.notification_url !== NOT_MENTIONED ? f.notification_url : n.official_url;
   return [
     head,
     changed,
-    L('Department', f.department),
-    L('Notification', f.title),
-    L('Posts', f.post_names),
-    L('Vacancies', f.vacancies),
-    L('Eligibility', f.eligibility),
-    L('Age Limit', f.age_limit),
-    L('Qualification', f.qualification),
-    L('Required Documents', f.required_documents),
-    L('Application Start', f.application_start),
-    L('Last Date', f.last_date),
-    L('Exam Date', f.exam_date),
-    L('Fee', f.application_fee),
-    L('Category-wise Fee', f.category_fee),
-    L('Selection Process', f.selection_process),
-    L('Revised Dates', f.revised_dates),
-    L('Deadline Extension', f.deadline_extension),
-    L('Important Notes', f.important_instructions),
-    L('Official Application Process', f.application_process),
-    L('Official Application URL', f.application_url),
-    L('Official Notification', f.notification_url !== NOT_MENTIONED ? f.notification_url : n.official_url),
+    ...present,
+    `*Official Notification:*\n${notifLink}\n`,
+    missing.length ? `_${NOT_MENTIONED}:_\n${missing.join(', ')}\n` : '',
     `_Verified: ${n.verified_at ? new Date(n.verified_at).toISOString().replace('T', ' ').slice(0, 16) + ' UTC' : 'n/a'} • ID #${n.id}_`,
   ]
     .filter(Boolean)
