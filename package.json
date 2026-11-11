@@ -4,8 +4,8 @@
   "description": "PDS Government Updates Automation",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test tests/unit.test.ts",
-    "test:e2e": "tsx --test tests/e2e.test.ts",
+    "test": "tsx --test tests/unit.test.ts tests/tls.test.ts",
+    "test:e2e": "tsx --test --test-concurrency=1 tests/e2e.test.ts tests/telegram.test.ts",
     "migrate": "tsx scripts/migrate.ts",
     "poster:demo": "tsx scripts/poster-demo.ts"
   },
@@ -14,6 +14,7 @@
     "@napi-rs/canvas": "^1.1.0",
     "cheerio": "^1.2.0",
     "pg": "^8.23.1",
+    "undici": "^8.12.4",
     "unpdf": "^1.9.1"
   },
   "devDependencies": {
