@@ -30,7 +30,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       count(*) FILTER (WHERE last_checked_at IS NULL)::int never FROM sources`);
     checks.sources = { ok: src.total > 0 && src.failing <= Math.ceil(src.total * 0.3), note: `${src.ok}/${src.total} OK, ${src.failing} failing, ${src.never} not checked yet` };
     const st = await q<{ status: string; c: number }>('SELECT status, count(*)::int c FROM notifications GROUP BY status');
-    const del = await one<any>(`SELECT count(*) FILTER (WHERE status='failed' AND created_at>now()-interval '2 days')::int failed, count(*) FILTER (WHERE kind='alert' AND created_at>now()-interval '2 days')::int alerts FROM deliveries`);
+    const del = await one<any>(`SELECT count(*) FILTER (WHERE status='failed' AND kind<>'error' AND created_at>now()-interval '2 days')::int failed, count(*) FILTER (WHERE kind='alert' AND created_at>now()-interval '2 days')::int alerts FROM deliveries`);
     const ch = await activeChannel();
     checks.alerts = { ok: ch !== 'none' && del.failed === 0, note: ch === 'none' ? 'No channel set up: pair Telegram (/api/telegram-setup) or configure WhatsApp' : `via ${ch}; ${del.alerts} alerts in 2 days, ${del.failed} failed sends` };
     checks.telegram = { ok: true, note: telegramTokenSet() ? ((await telegramChatId()) ? 'paired' : 'bot token set, not paired yet') : 'not used' };
@@ -40,7 +40,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     out.waiting_for_you = pending;
     out.failing_sources = await q('SELECT id, name, last_error, consecutive_failures FROM sources WHERE consecutive_failures>=3 ORDER BY consecutive_failures DESC LIMIT 10');
     out.sources_with_errors = await q(`SELECT id, name, left(last_error, 120) AS last_error, consecutive_failures FROM sources WHERE last_status='error' ORDER BY consecutive_failures DESC, name LIMIT 40`);
-    out.recent_failed_sends = await q(`SELECT kind, notification_id, left(error, 160) AS error, created_at FROM deliveries WHERE status='failed' ORDER BY id DESC LIMIT 5`);
+    out.recent_failed_sends = await q(`SELECT kind, notification_id, left(error, 160) AS error, created_at FROM deliveries WHERE status='failed' AND kind<>'error' ORDER BY id DESC LIMIT 5`);
     out.last_run = run;
   }
   if (qs(req, 'ai') === '1') {
