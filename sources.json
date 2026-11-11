@@ -1,0 +1,501 @@
+{
+  "_note": "Official government sources to monitor. Add a new line to add a website. priority 1 = checked most often. Every URL should be an official government / department website.",
+  "sources": [
+    {
+      "id": "tg-tgpsc",
+      "government": "Telangana",
+      "department": "Telangana Public Service Commission",
+      "name": "TGPSC",
+      "url": "https://websitenew.tgpsc.gov.in/",
+      "priority": 1
+    },
+    {
+      "id": "tg-tgpsc-main",
+      "government": "Telangana",
+      "department": "Telangana Public Service Commission",
+      "name": "TGPSC (main site)",
+      "url": "https://tgpsc.gov.in/",
+      "priority": 1
+    },
+    {
+      "id": "tg-goir",
+      "government": "Telangana",
+      "department": "General Administration Dept",
+      "name": "Telangana GO Issue Register",
+      "url": "https://goir.telangana.gov.in/",
+      "priority": 1
+    },
+    {
+      "id": "tg-portal",
+      "government": "Telangana",
+      "department": "Government of Telangana",
+      "name": "Telangana State Portal",
+      "url": "https://www.telangana.gov.in/",
+      "priority": 1
+    },
+    {
+      "id": "tg-tgprb",
+      "government": "Telangana",
+      "department": "Telangana State Level Police Recruitment Board",
+      "name": "TGSLPRB",
+      "url": "https://www.tgprb.in/",
+      "priority": 1
+    },
+    {
+      "id": "tg-mhsrb",
+      "government": "Telangana",
+      "department": "Medical & Health Services Recruitment Board",
+      "name": "MHSRB",
+      "url": "https://mhsrb.telangana.gov.in/",
+      "priority": 1
+    },
+    {
+      "id": "tg-highcourt",
+      "government": "Telangana",
+      "department": "High Court for the State of Telangana",
+      "name": "Telangana High Court",
+      "url": "https://tshc.gov.in/",
+      "priority": 2
+    },
+    {
+      "id": "tg-tgsrtc",
+      "government": "Telangana",
+      "department": "Telangana State Road Transport Corporation",
+      "name": "TGSRTC",
+      "url": "https://www.tgsrtc.telangana.gov.in/",
+      "priority": 2
+    },
+    {
+      "id": "tg-schooledu",
+      "government": "Telangana",
+      "department": "School Education Department",
+      "name": "School Education",
+      "url": "https://schooledu.telangana.gov.in/",
+      "priority": 2
+    },
+    {
+      "id": "tg-bse",
+      "government": "Telangana",
+      "department": "Board of Secondary Education",
+      "name": "SSC Board Telangana",
+      "url": "https://bse.telangana.gov.in/",
+      "priority": 2
+    },
+    {
+      "id": "tg-bie",
+      "government": "Telangana",
+      "department": "Board of Intermediate Education",
+      "name": "TG Intermediate Board",
+      "url": "https://tgbie.cgg.gov.in/",
+      "priority": 2
+    },
+    {
+      "id": "tg-tgche",
+      "government": "Telangana",
+      "department": "Telangana State Council of Higher Education",
+      "name": "TGCHE",
+      "url": "https://tgche.ac.in/",
+      "priority": 2
+    },
+    {
+      "id": "tg-eapcet",
+      "government": "Telangana",
+      "department": "TG EAPCET",
+      "name": "TG EAPCET",
+      "url": "https://eapcet.tgche.ac.in/",
+      "priority": 2
+    },
+    {
+      "id": "tg-epass",
+      "government": "Telangana",
+      "department": "Telangana Scholarships (ePASS)",
+      "name": "Telangana ePASS",
+      "url": "https://telanganaepass.cgg.gov.in/",
+      "priority": 2
+    },
+    {
+      "id": "tg-meeseva",
+      "government": "Telangana",
+      "department": "Citizen Services (MeeSeva)",
+      "name": "MeeSeva",
+      "url": "https://ts.meeseva.telangana.gov.in/",
+      "priority": 2
+    },
+    {
+      "id": "tg-epds",
+      "government": "Telangana",
+      "department": "Civil Supplies Department",
+      "name": "Telangana EPDS",
+      "url": "https://epds.telangana.gov.in/",
+      "priority": 2
+    },
+    {
+      "id": "tg-agri",
+      "government": "Telangana",
+      "department": "Agriculture Department",
+      "name": "Agriculture Telangana",
+      "url": "https://agri.telangana.gov.in/",
+      "priority": 2
+    },
+    {
+      "id": "tg-transport",
+      "government": "Telangana",
+      "department": "Transport Department",
+      "name": "Transport Telangana",
+      "url": "https://transport.telangana.gov.in/",
+      "priority": 3
+    },
+    {
+      "id": "tg-finance",
+      "government": "Telangana",
+      "department": "Finance Department",
+      "name": "Finance Telangana",
+      "url": "https://finance.telangana.gov.in/",
+      "priority": 3
+    },
+    {
+      "id": "tg-sccl",
+      "government": "Telangana",
+      "department": "Singareni Collieries Company Ltd",
+      "name": "SCCL",
+      "url": "https://scclmines.com/",
+      "priority": 2
+    },
+    {
+      "id": "tg-tgsouthern",
+      "government": "Telangana",
+      "department": "TG Southern Power Distribution Company",
+      "name": "TGSPDCL",
+      "url": "https://tgsouthernpower.org/",
+      "priority": 3
+    },
+    {
+      "id": "tg-tgnorthern",
+      "government": "Telangana",
+      "department": "TG Northern Power Distribution Company",
+      "name": "TGNPDCL",
+      "url": "https://tgnpdcl.com/",
+      "priority": 3
+    },
+    {
+      "id": "tg-ghmc",
+      "government": "Telangana",
+      "department": "Greater Hyderabad Municipal Corporation",
+      "name": "GHMC",
+      "url": "https://www.ghmc.gov.in/",
+      "priority": 3
+    },
+    {
+      "id": "tg-hmwssb",
+      "government": "Telangana",
+      "department": "Hyderabad Metropolitan Water Supply & Sewerage Board",
+      "name": "HMWSSB",
+      "url": "https://www.hyderabadwater.gov.in/",
+      "priority": 3
+    },
+    {
+      "id": "c-upsc",
+      "government": "Central",
+      "department": "Union Public Service Commission",
+      "name": "UPSC",
+      "url": "https://upsc.gov.in/",
+      "priority": 1
+    },
+    {
+      "id": "c-ssc",
+      "government": "Central",
+      "department": "Staff Selection Commission",
+      "name": "SSC",
+      "url": "https://ssc.gov.in/",
+      "priority": 1
+    },
+    {
+      "id": "c-ibps",
+      "government": "Central",
+      "department": "Institute of Banking Personnel Selection",
+      "name": "IBPS",
+      "url": "https://www.ibps.in/",
+      "priority": 1
+    },
+    {
+      "id": "c-rrb",
+      "government": "Central",
+      "department": "Railway Recruitment Boards",
+      "name": "RRB Chandigarh",
+      "url": "https://www.rrbcdg.gov.in/",
+      "priority": 1
+    },
+    {
+      "id": "c-railways",
+      "government": "Central",
+      "department": "Ministry of Railways",
+      "name": "Indian Railways",
+      "url": "https://indianrailways.gov.in/",
+      "priority": 2
+    },
+    {
+      "id": "c-nta",
+      "government": "Central",
+      "department": "National Testing Agency",
+      "name": "NTA",
+      "url": "https://nta.ac.in/",
+      "priority": 1
+    },
+    {
+      "id": "c-employment-news",
+      "government": "Central",
+      "department": "Employment News",
+      "name": "Employment News",
+      "url": "https://employmentnews.gov.in/",
+      "priority": 1
+    },
+    {
+      "id": "c-ncs",
+      "government": "Central",
+      "department": "National Career Service",
+      "name": "NCS",
+      "url": "https://www.ncs.gov.in/",
+      "priority": 2
+    },
+    {
+      "id": "c-pib",
+      "government": "Central",
+      "department": "Press Information Bureau",
+      "name": "PIB",
+      "url": "https://pib.gov.in/",
+      "priority": 2
+    },
+    {
+      "id": "c-egazette",
+      "government": "Central",
+      "department": "e-Gazette of India",
+      "name": "e-Gazette",
+      "url": "https://egazette.gov.in/",
+      "priority": 3
+    },
+    {
+      "id": "c-army",
+      "government": "Central",
+      "department": "Indian Army",
+      "name": "Join Indian Army",
+      "url": "https://joinindianarmy.nic.in/",
+      "priority": 2
+    },
+    {
+      "id": "c-navy",
+      "government": "Central",
+      "department": "Indian Navy",
+      "name": "Join Indian Navy",
+      "url": "https://www.joinindiannavy.gov.in/",
+      "priority": 2
+    },
+    {
+      "id": "c-iaf",
+      "government": "Central",
+      "department": "Indian Air Force",
+      "name": "Indian Air Force",
+      "url": "https://indianairforce.nic.in/",
+      "priority": 2
+    },
+    {
+      "id": "c-indiapost",
+      "government": "Central",
+      "department": "India Post",
+      "name": "India Post",
+      "url": "https://www.indiapost.gov.in/",
+      "priority": 2
+    },
+    {
+      "id": "c-gds",
+      "government": "Central",
+      "department": "India Post – Gramin Dak Sevak",
+      "name": "India Post GDS",
+      "url": "https://indiapostgdsonline.gov.in/",
+      "priority": 2
+    },
+    {
+      "id": "c-rbi",
+      "government": "Central",
+      "department": "Reserve Bank of India",
+      "name": "RBI",
+      "url": "https://www.rbi.org.in/",
+      "priority": 2
+    },
+    {
+      "id": "c-rbi-opps",
+      "government": "Central",
+      "department": "Reserve Bank of India – Opportunities",
+      "name": "RBI Opportunities",
+      "url": "https://opportunities.rbi.org.in/",
+      "priority": 2
+    },
+    {
+      "id": "c-drdo",
+      "government": "Central",
+      "department": "DRDO",
+      "name": "DRDO",
+      "url": "https://www.drdo.gov.in/",
+      "priority": 3
+    },
+    {
+      "id": "c-isro",
+      "government": "Central",
+      "department": "ISRO",
+      "name": "ISRO",
+      "url": "https://www.isro.gov.in/",
+      "priority": 3
+    },
+    {
+      "id": "c-cbse",
+      "government": "Central",
+      "department": "Central Board of Secondary Education",
+      "name": "CBSE",
+      "url": "https://www.cbse.gov.in/",
+      "priority": 2
+    },
+    {
+      "id": "c-pmkisan",
+      "government": "Central",
+      "department": "PM-KISAN",
+      "name": "PM Kisan",
+      "url": "https://pmkisan.gov.in/",
+      "priority": 2
+    },
+    {
+      "id": "c-pmjay",
+      "government": "Central",
+      "department": "Ayushman Bharat PM-JAY",
+      "name": "PMJAY",
+      "url": "https://pmjay.gov.in/",
+      "priority": 3
+    },
+    {
+      "id": "c-uidai",
+      "government": "Central",
+      "department": "UIDAI (Aadhaar)",
+      "name": "UIDAI",
+      "url": "https://uidai.gov.in/",
+      "priority": 2
+    },
+    {
+      "id": "c-epfo",
+      "government": "Central",
+      "department": "Employees' Provident Fund Organisation",
+      "name": "EPFO",
+      "url": "https://www.epfindia.gov.in/",
+      "priority": 3
+    },
+    {
+      "id": "c-incometax",
+      "government": "Central",
+      "department": "Income Tax Department",
+      "name": "Income Tax",
+      "url": "https://www.incometax.gov.in/",
+      "priority": 3
+    },
+    {
+      "id": "c-scholarships",
+      "government": "Central",
+      "department": "National Scholarship Portal",
+      "name": "NSP",
+      "url": "https://scholarships.gov.in/",
+      "priority": 2
+    },
+    {
+      "id": "c-myscheme",
+      "government": "Central",
+      "department": "MyScheme",
+      "name": "MyScheme",
+      "url": "https://www.myscheme.gov.in/",
+      "priority": 2
+    },
+    {
+      "id": "c-indiagov",
+      "government": "Central",
+      "department": "National Portal of India",
+      "name": "India.gov.in",
+      "url": "https://www.india.gov.in/",
+      "priority": 3
+    },
+    {
+      "id": "c-csir",
+      "government": "Central",
+      "department": "CSIR",
+      "name": "CSIR",
+      "url": "https://www.csir.res.in/",
+      "priority": 3
+    },
+    {
+      "id": "c-aiims",
+      "government": "Central",
+      "department": "AIIMS Recruitment",
+      "name": "AIIMS Exams",
+      "url": "https://www.aiimsexams.ac.in/",
+      "priority": 2
+    },
+    {
+      "id": "c-cisf",
+      "government": "Central",
+      "department": "Central Industrial Security Force",
+      "name": "CISF",
+      "url": "https://www.cisf.gov.in/",
+      "priority": 3
+    },
+    {
+      "id": "c-crpf",
+      "government": "Central",
+      "department": "Central Reserve Police Force",
+      "name": "CRPF",
+      "url": "https://crpf.gov.in/",
+      "priority": 3
+    },
+    {
+      "id": "c-bsf",
+      "government": "Central",
+      "department": "Border Security Force",
+      "name": "BSF Recruitment",
+      "url": "https://rectt.bsf.gov.in/",
+      "priority": 3
+    },
+    {
+      "id": "c-moe",
+      "government": "Central",
+      "department": "Ministry of Education",
+      "name": "Ministry of Education",
+      "url": "https://www.education.gov.in/",
+      "priority": 3
+    },
+    {
+      "id": "c-labour",
+      "government": "Central",
+      "department": "Ministry of Labour & Employment",
+      "name": "Labour Ministry",
+      "url": "https://labour.gov.in/",
+      "priority": 3
+    },
+    {
+      "id": "c-dopt",
+      "government": "Central",
+      "department": "Department of Personnel & Training",
+      "name": "DoPT",
+      "url": "https://dopt.gov.in/",
+      "priority": 3
+    },
+    {
+      "id": "c-ugc",
+      "government": "Central",
+      "department": "University Grants Commission",
+      "name": "UGC",
+      "url": "https://www.ugc.gov.in/",
+      "priority": 3
+    },
+    {
+      "id": "c-aicte",
+      "government": "Central",
+      "department": "AICTE",
+      "name": "AICTE",
+      "url": "https://www.aicte-india.org/",
+      "priority": 3
+    }
+  ]
+}
