@@ -40,7 +40,17 @@ function numbersInText(text: string): Set<string> {
   return new Set(numTokens(text));
 }
 
+/** Categories the owner wants alerts for (jobs, exams/results, schemes/scholarships, citizen services). GOs and circulars are not wanted. */
+const DEFAULT_WANTED = ['recruitment', 'application', 'deadline_extension', 'exam', 'hall_ticket', 'result', 'scheme', 'citizen_service', 'announcement'];
+export function wantedCategories(): Set<string> {
+  const custom = (process.env.ALERT_CATEGORIES || '').split(',').map((x) => x.trim()).filter(Boolean);
+  return new Set(custom.length ? custom : DEFAULT_WANTED);
+}
+const ACTIONABLE: FieldName[] = ['application_start', 'last_date', 'exam_date', 'vacancies', 'application_url', 'application_process', 'revised_dates', 'deadline_extension'];
+
 export interface VerificationReport {
+  category: string;
+  category_ok: boolean;
   verified_at: string;
   official_url: string;
   official_host: string;
@@ -111,6 +121,14 @@ export function verifyExtraction(args: {
   const hit = titleWords.filter((w) => hay.includes(w)).length;
   const titleGrounded = titleWords.length === 0 ? false : hit / titleWords.length >= 0.6;
 
+  const wanted = wantedCategories();
+  let categoryOk = wanted.has(ex.category);
+  if (!categoryOk) reasons.push(`Category not wanted: ${ex.category}`);
+  else if (ex.category === 'announcement' && !ACTIONABLE.some((f) => ex.fields[f] !== NOT_MENTIONED)) {
+    categoryOk = false;
+    reasons.push('General announcement without dates, vacancies or application details');
+  }
+
   const officialHostOk = isOfficialHost(officialUrl, sourceUrl);
   if (!officialHostOk) reasons.push('Official link is not on a recognised government domain');
   if (!ex.is_official_notification) reasons.push('Text is not an official notification');
@@ -118,10 +136,12 @@ export function verifyExtraction(args: {
   if (!titleGrounded) reasons.push('Title could not be matched with the source text');
   if (ex.fields.title === NOT_MENTIONED) reasons.push('No title found');
 
-  const verdict = officialHostOk && ex.is_official_notification && ex.is_relevant && titleGrounded && ex.fields.title !== NOT_MENTIONED ? 'pass' : 'fail';
+  const verdict = officialHostOk && ex.is_official_notification && ex.is_relevant && categoryOk && titleGrounded && ex.fields.title !== NOT_MENTIONED ? 'pass' : 'fail';
   return {
     extracted: ex,
     report: {
+      category: ex.category,
+      category_ok: categoryOk,
       verified_at: new Date().toISOString(),
       official_url: officialUrl,
       official_host: host(officialUrl),

@@ -28,9 +28,9 @@ export async function syncSources(): Promise<number> {
   const file = JSON.parse(readFileSync(path.join(ROOT, 'config', 'sources.json'), 'utf8'));
   for (const s of file.sources) {
     await q(
-      `INSERT INTO sources(id, government, department, name, url, priority) VALUES ($1,$2,$3,$4,$5,$6)
-       ON CONFLICT (id) DO UPDATE SET government=$2, department=$3, name=$4, url=$5, priority=$6`,
-      [s.id, s.government, s.department, s.name, s.url, s.priority ?? 2],
+      `INSERT INTO sources(id, government, department, name, url, priority, active) VALUES ($1,$2,$3,$4,$5,$6,$7)
+       ON CONFLICT (id) DO UPDATE SET government=$2, department=$3, name=$4, url=$5, priority=$6, active=$7`,
+      [s.id, s.government, s.department, s.name, s.url, s.priority ?? 2, s.active !== false],
     );
   }
   return file.sources.length;
