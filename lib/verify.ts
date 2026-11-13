@@ -8,7 +8,7 @@ const OFFICIAL_SUFFIXES = ['.gov.in', '.nic.in', '.gov', '.ac.in', '.res.in', '.
 /** Official bodies that use their own domain (exact host match, subdomains allowed). */
 const OFFICIAL_HOSTS = [
   'ibps.in', 'rbi.org.in', 'sbi.co.in', 'licindia.in', 'tspsc.gov.in', 'tgprb.in', 'scclmines.com', 'tgnpdcl.com',
-  'tgsouthernpower.org', 'aicte-india.org', 'cgg.gov.in', 'aptonline.in',
+  'tgsouthernpower.org', 'aicte-india.org', 'cgg.gov.in', 'aptonline.in', 'bel-india.in', 'sail.co.in', 'ecil.co.in', 'hal-india.co.in', 'nabard.org', 'esic.gov.in', 'tswreis.ac.in',
 ];
 
 const host = (u: string) => {

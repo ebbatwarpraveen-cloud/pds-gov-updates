@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { cfg, NOT_MENTIONED } from './config.js';
+import { cfg, env, NOT_MENTIONED } from './config.js';
 import { one, q } from './db.js';
 import { findNewCandidates, type Candidate } from './detect.js';
 import { extractNotification, type FieldName } from './extract.js';
@@ -58,8 +58,11 @@ interface Analysis {
   excerpt?: string;
 }
 
+/** Firecrawl (paid credits) is used only for the few sources listed in FIRECRAWL_SOURCES, e.g. tg-tgpsc-main. */
+const useFirecrawl = (source: { id: string }) => env('FIRECRAWL_SOURCES').split(',').map((x) => x.trim()).filter(Boolean).includes(source.id);
+
 async function analyze(url: string, source: SourceRow, linkText: string): Promise<Analysis> {
-  const page = await fetchPage(url);
+  const page = await fetchPage(url, { firecrawl: useFirecrawl(source) });
   if (!page.ok) return { ok: false, error: `Could not open official page: ${page.error}` };
   let extracted;
   try {
@@ -173,7 +176,7 @@ export async function recheckRecent(limit = 3): Promise<number> {
 }
 
 export async function checkSource(source: SourceRow): Promise<{ ok: boolean; candidates: Candidate[]; baseline: boolean; flood?: number }> {
-  const page = await fetchPage(source.url);
+  const page = await fetchPage(source.url, { firecrawl: useFirecrawl(source) });
   if (!page.ok) {
     await q(
       `UPDATE sources SET last_checked_at=now(), last_status='error', last_error=$2, consecutive_failures=consecutive_failures+1 WHERE id=$1`,

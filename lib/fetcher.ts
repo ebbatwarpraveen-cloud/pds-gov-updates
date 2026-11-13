@@ -143,7 +143,7 @@ async function viaJina(url: string): Promise<Page> {
 }
 
 /** Fetch a page or PDF. Direct first (free), relaxed TLS for official sites with broken certificates, Firecrawl as last fallback. */
-export async function fetchPage(url: string): Promise<Page> {
+export async function fetchPage(url: string, opts: { firecrawl?: boolean } = {}): Promise<Page> {
   let directErr = '';
   let relaxed = false;
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -187,7 +187,7 @@ export async function fetchPage(url: string): Promise<Page> {
       directErr += ' | ' + (e instanceof Error ? e.message : String(e));
     }
   }
-  if (env('FIRECRAWL_API_KEY')) {
+  if (opts.firecrawl && env('FIRECRAWL_API_KEY')) {
     try {
       const p = await viaFirecrawl(url);
       if (p.ok) return p;
