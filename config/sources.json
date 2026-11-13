@@ -72,7 +72,8 @@
       "department": "School Education Department",
       "name": "School Education",
       "url": "https://schooledu.telangana.gov.in/",
-      "priority": 2
+      "priority": 2,
+      "active": false
     },
     {
       "id": "tg-bse",
@@ -88,7 +89,8 @@
       "department": "Board of Intermediate Education",
       "name": "TG Intermediate Board",
       "url": "https://tgbie.cgg.gov.in/",
-      "priority": 2
+      "priority": 2,
+      "active": false
     },
     {
       "id": "tg-tgche",
@@ -152,7 +154,8 @@
       "department": "Finance Department",
       "name": "Finance Telangana",
       "url": "https://finance.telangana.gov.in/",
-      "priority": 3
+      "priority": 3,
+      "active": false
     },
     {
       "id": "tg-sccl",
@@ -192,7 +195,8 @@
       "department": "Hyderabad Metropolitan Water Supply & Sewerage Board",
       "name": "HMWSSB",
       "url": "https://www.hyderabadwater.gov.in/",
-      "priority": 3
+      "priority": 3,
+      "active": false
     },
     {
       "id": "c-upsc",
@@ -368,7 +372,8 @@
       "department": "Ayushman Bharat PM-JAY",
       "name": "PMJAY",
       "url": "https://pmjay.gov.in/",
-      "priority": 3
+      "priority": 3,
+      "active": false
     },
     {
       "id": "c-uidai",
@@ -496,7 +501,8 @@
       "department": "AICTE",
       "name": "AICTE",
       "url": "https://www.aicte-india.org/",
-      "priority": 3
+      "priority": 3,
+      "active": false
     },
     {
       "id": "tg-dost",
@@ -560,7 +566,8 @@
       "department": "Aarogyasri Health Care Trust",
       "name": "Aarogyasri",
       "url": "https://www.aarogyasri.telangana.gov.in/",
-      "priority": 2
+      "priority": 2,
+      "active": false
     },
     {
       "id": "tg-wdcw",
@@ -576,7 +583,8 @@
       "department": "Telangana Social Welfare Residential Educational Institutions Society",
       "name": "TGSWREIS",
       "url": "https://tswreis.ac.in/",
-      "priority": 2
+      "priority": 2,
+      "active": false
     },
     {
       "id": "tg-dharani",
@@ -608,7 +616,8 @@
       "department": "Railway Recruitment Board Secunderabad",
       "name": "RRB Secunderabad",
       "url": "https://www.rrbsecunderabad.gov.in/",
-      "priority": 1
+      "priority": 1,
+      "active": false
     },
     {
       "id": "c-rrbapply",
@@ -664,7 +673,8 @@
       "department": "Skill India (PMKVY)",
       "name": "PMKVY",
       "url": "https://www.pmkvyofficial.org/",
-      "priority": 3
+      "priority": 3,
+      "active": false
     },
     {
       "id": "c-pmay",
@@ -672,7 +682,8 @@
       "department": "PM Awas Yojana (Gramin)",
       "name": "PMAY-G",
       "url": "https://pmayg.nic.in/",
-      "priority": 3
+      "priority": 3,
+      "active": false
     },
     {
       "id": "c-nrega",
