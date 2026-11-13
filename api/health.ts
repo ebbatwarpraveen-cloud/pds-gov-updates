@@ -26,8 +26,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const stale = ageMin === null || ageMin > cfg.healthMaxAgeMin();
     checks.monitoring = { ok: !stale && !run?.error, note: run ? `last run ${ageMin} min ago${run.error ? ' (error: ' + run.error + ')' : ''}` : 'never ran' };
     const src = await one<any>(`SELECT count(*)::int total, count(*) FILTER (WHERE active)::int active,
-      count(*) FILTER (WHERE last_status='ok')::int ok, count(*) FILTER (WHERE consecutive_failures>=3)::int failing,
-      count(*) FILTER (WHERE last_checked_at IS NULL)::int never FROM sources`);
+      count(*) FILTER (WHERE active AND last_status='ok')::int ok, count(*) FILTER (WHERE active AND consecutive_failures>=3)::int failing,
+      count(*) FILTER (WHERE last_checked_at IS NULL)::int never FROM sources WHERE active`);
     checks.sources = { ok: src.total > 0 && src.failing <= Math.ceil(src.total * 0.3), note: `${src.ok}/${src.total} OK, ${src.failing} failing, ${src.never} not checked yet` };
     const st = await q<{ status: string; c: number }>('SELECT status, count(*)::int c FROM notifications GROUP BY status');
     const del = await one<any>(`SELECT count(*) FILTER (WHERE status='failed' AND kind<>'error' AND created_at>now()-interval '2 days')::int failed, count(*) FILTER (WHERE kind='alert' AND created_at>now()-interval '2 days')::int alerts FROM deliveries`);
@@ -38,8 +38,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const pending = st.filter((x) => ['alerted', 'poster_ready', 'verified', 'alert_failed'].includes(x.status)).reduce((a, b) => a + b.c, 0);
     out.notifications = Object.fromEntries(st.map((x) => [x.status, x.c]));
     out.waiting_for_you = pending;
-    out.failing_sources = await q('SELECT id, name, last_error, consecutive_failures FROM sources WHERE consecutive_failures>=3 ORDER BY consecutive_failures DESC LIMIT 10');
-    out.sources_with_errors = await q(`SELECT id, name, left(last_error, 120) AS last_error, consecutive_failures FROM sources WHERE last_status='error' ORDER BY consecutive_failures DESC, name LIMIT 40`);
+    out.failing_sources = await q('SELECT id, name, last_error, consecutive_failures FROM sources WHERE active AND consecutive_failures>=3 ORDER BY consecutive_failures DESC LIMIT 10');
+    out.sources_with_errors = await q(`SELECT id, name, left(last_error, 120) AS last_error, consecutive_failures FROM sources WHERE active AND last_status='error' ORDER BY consecutive_failures DESC, name LIMIT 40`);
     out.recent_failed_sends = await q(`SELECT kind, notification_id, left(error, 160) AS error, created_at FROM deliveries WHERE status='failed' AND kind<>'error' ORDER BY id DESC LIMIT 5`);
     out.last_run = run;
   }
