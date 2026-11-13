@@ -8,6 +8,16 @@ export function istNow(now = new Date()): { date: string; hour: number } {
   return { date: ist.toISOString().slice(0, 10), hour: ist.getUTCHours() };
 }
 
+/** Keeps the free database small: old poster images, logs and message records are removed. Notifications are kept forever. */
+export async function cleanupOldData(): Promise<{ posters: number; logs: number }> {
+  const posters = await q(`DELETE FROM posters WHERE created_at < now() - interval '60 days' RETURNING id`);
+  const logs = await q(`DELETE FROM logs WHERE created_at < now() - interval '30 days' RETURNING id`);
+  await q(`DELETE FROM inbound_messages WHERE created_at < now() - interval '30 days'`);
+  await q(`DELETE FROM runs WHERE started_at < now() - interval '60 days'`);
+  await q(`DELETE FROM deliveries WHERE created_at < now() - interval '90 days'`);
+  return { posters: posters.length, logs: logs.length };
+}
+
 /**
  * Once a day (after 8 AM IST) the owner gets a short status message.
  * If one morning this message does not arrive, monitoring has stopped.
@@ -18,6 +28,7 @@ export async function maybeHeartbeat(now = new Date(), hourFrom = 8): Promise<bo
   if ((await getSetting('last_heartbeat_date')) === date) return false;
   // claim the day first so two parallel runs never send it twice
   await setSetting('last_heartbeat_date', date);
+  await cleanupOldData().catch(() => undefined);
 
   const src = await one<any>(`SELECT count(*)::int total, count(*) FILTER (WHERE last_status='ok')::int ok FROM sources WHERE active`);
   const failing = await q<{ name: string }>(`SELECT name FROM sources WHERE active AND consecutive_failures>=3 ORDER BY consecutive_failures DESC LIMIT 5`);
