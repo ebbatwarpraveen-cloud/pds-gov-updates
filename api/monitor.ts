@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { cfg } from '../lib/config.js';
 import { one, q } from '../lib/db.js';
 import { deny, isAdmin } from '../lib/http.js';
+import { maybeHeartbeat } from '../lib/heartbeat.js';
 import { log } from '../lib/log.js';
 import { alertOwnerError, checkSource, pickSources, processCandidate, recheckRecent, retryUnsent, syncSources, type SourceRow } from '../lib/pipeline.js';
 import type { Candidate } from '../lib/detect.js';
@@ -59,6 +60,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
     if (left() > 10_000) stats.rechecked = await recheckRecent(2);
+    await maybeHeartbeat().catch((e) => log('warn', 'heartbeat', String(e)));
 
     if (stats.checked > 0 && stats.failed / stats.checked > 0.5) {
       await alertOwnerError(`${stats.failed} of ${stats.checked} websites could not be opened in this run. Check /api/health.`);
