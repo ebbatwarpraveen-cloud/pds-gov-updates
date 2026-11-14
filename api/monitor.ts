@@ -4,7 +4,7 @@ import { one, q } from '../lib/db.js';
 import { deny, isAdmin } from '../lib/http.js';
 import { maybeHeartbeat } from '../lib/heartbeat.js';
 import { log } from '../lib/log.js';
-import { alertOwnerError, checkSource, pickSources, processCandidate, recheckRecent, retryUnsent, syncSources, type SourceRow } from '../lib/pipeline.js';
+import { alertOwnerError, checkSource, pickSources, processCandidate, recheckRecent, releaseCandidates, retryUnsent, syncSources, type SourceRow } from '../lib/pipeline.js';
 import type { Candidate } from '../lib/detect.js';
 
 export const config = { maxDuration: 60 };
@@ -44,8 +44,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await Promise.all([worker(), worker(), worker(), worker()]);
     stats.candidates = queue.length;
 
-    for (const { s, c } of queue.slice(0, cfg.maxCandidates())) {
-      if (left() < 8_000) break;
+    let done = 0;
+    const limit = cfg.maxCandidates();
+    while (done < queue.length && done < limit && left() >= 8_000) {
+      const { s, c } = queue[done++];
       try {
         const o = await processCandidate(s, c);
         if (o === 'alerted') stats.alerted++;
@@ -58,6 +60,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         stats.failedItems++;
         await log('error', 'monitor', 'candidate crashed', { url: c.link.href, error: String(e) });
       }
+    }
+    // anything not processed (time / per-run limit) must be found again next time, never silently dropped
+    const leftover = queue.slice(done);
+    if (leftover.length) {
+      await releaseCandidates(leftover);
+      await log('info', 'monitor', `${leftover.length} link(s) postponed to the next run`);
     }
     if (left() > 10_000) stats.rechecked = await recheckRecent(2);
     await maybeHeartbeat().catch((e) => log('warn', 'heartbeat', String(e)));
