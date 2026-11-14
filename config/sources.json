@@ -5,10 +5,10 @@
       "id": "tg-tgpsc",
       "government": "Telangana",
       "department": "Telangana Public Service Commission",
-      "name": "TGPSC",
+      "name": "TGPSC (notifications site)",
       "url": "https://websitenew.tgpsc.gov.in/",
       "priority": 1,
-      "active": false
+      "active": true
     },
     {
       "id": "tg-tgpsc-main",
@@ -16,7 +16,8 @@
       "department": "Telangana Public Service Commission",
       "name": "TGPSC (main site)",
       "url": "https://tgpsc.gov.in/",
-      "priority": 1
+      "priority": 1,
+      "active": false
     },
     {
       "id": "tg-goir",
