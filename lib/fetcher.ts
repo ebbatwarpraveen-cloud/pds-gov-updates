@@ -100,7 +100,7 @@ async function viaFirecrawl(url: string): Promise<Page> {
     headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
     body: JSON.stringify({ url, formats: ['markdown', 'links'], maxAge: 0, onlyMainContent: false, parsers: ['pdf'], timeout: 45000 }),
   });
-  if (!res.ok) throw new Error(`Firecrawl HTTP ${res.status}`);
+  if (!res.ok) throw new Error(`Firecrawl HTTP ${res.status}: ${(await res.text().catch(() => '')).replace(/\s+/g, ' ').slice(0, 160)}`);
   const j: any = await res.json();
   const d = j?.data ?? j;
   const text = collapse(String(d?.markdown ?? ''));
