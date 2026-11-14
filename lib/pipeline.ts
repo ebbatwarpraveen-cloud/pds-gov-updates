@@ -48,6 +48,12 @@ export async function pickSources(limit: number): Promise<SourceRow[]> {
   );
 }
 
+/** Links that were detected but not processed (time or per-run limit) are forgotten again, so the next run picks them up. */
+export async function releaseCandidates(items: { s: { id: string }; c: Candidate }[]): Promise<number> {
+  for (const { s, c } of items) await q('DELETE FROM seen_links WHERE source_id=$1 AND link_hash=$2', [s.id, c.hash]);
+  return items.length;
+}
+
 export type Outcome = 'alerted' | 'updated' | 'duplicate' | 'filtered' | 'failed' | 'unsent';
 
 interface Analysis {
