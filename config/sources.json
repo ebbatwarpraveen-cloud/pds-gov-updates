@@ -559,7 +559,8 @@
       "department": "TG POLYCET (SBTET)",
       "name": "TG POLYCET",
       "url": "https://polycet.sbtet.telangana.gov.in/",
-      "priority": 2
+      "priority": 2,
+      "active": false
     },
     {
       "id": "tg-aarogyasri",
@@ -593,7 +594,8 @@
       "department": "Revenue Department (Dharani)",
       "name": "Dharani",
       "url": "https://dharani.telangana.gov.in/",
-      "priority": 3
+      "priority": 3,
+      "active": false
     },
     {
       "id": "tg-osmania",
@@ -626,7 +628,8 @@
       "department": "Railway Recruitment Boards (apply portal)",
       "name": "RRB Apply",
       "url": "https://www.rrbapply.gov.in/",
-      "priority": 2
+      "priority": 2,
+      "active": false
     },
     {
       "id": "c-neet",
@@ -692,7 +695,8 @@
       "department": "MGNREGA",
       "name": "MGNREGA",
       "url": "https://nrega.nic.in/",
-      "priority": 3
+      "priority": 3,
+      "active": false
     },
     {
       "id": "c-pmuy",
