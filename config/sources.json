@@ -832,7 +832,8 @@
       "department": "Transmission Corporation of Telangana",
       "name": "TGTRANSCO",
       "url": "https://tstransco.in/",
-      "priority": 2
+      "priority": 2,
+      "active": false
     }
   ]
 }
