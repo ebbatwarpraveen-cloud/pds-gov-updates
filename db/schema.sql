@@ -124,3 +124,5 @@ CREATE TABLE IF NOT EXISTS topics (
 );
 ALTER TABLE notifications ADD COLUMN IF NOT EXISTS topic_id bigint;
 ALTER TABLE notifications ADD COLUMN IF NOT EXISTS event text;
+ALTER TABLE seen_links ADD COLUMN IF NOT EXISTS attempts int NOT NULL DEFAULT 0;
+ALTER TABLE seen_links ADD COLUMN IF NOT EXISTS retry boolean NOT NULL DEFAULT false;
