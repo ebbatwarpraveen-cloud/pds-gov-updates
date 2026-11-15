@@ -2,7 +2,7 @@ import { cfg, env } from './config.js';
 import { q } from './db.js';
 import { getSetting } from './settings.js';
 import { log } from './log.js';
-import { buildCaption, fullAlertText, POSTER_MENU, posterLink, privateLink, templateParams, type NotificationRow } from './messages.js';
+import { buildCaption, officialLink, POSTER_MENU, posterLink, privateLink, shortAlertText, templateParams, type NotificationRow } from './messages.js';
 import { tgSendMessage, tgSendPhoto, telegramTokenSet, type TgButton } from './telegram.js';
 import { sendImage, sendTemplate, sendText, tracked, whatsappConfigured, type SendResult } from './whatsapp.js';
 
@@ -46,7 +46,7 @@ export async function sendOwnerText(notificationId: number | null, kind: string,
   return { ok: false, skipped: true, error: 'No notification channel is configured' };
 }
 
-/** First message about a new / updated notification (with ACCEPT / REJECT / VERIFY). */
+/** First message about a new recruitment / extension / hall ticket: short Telugu text + buttons. */
 export async function sendOwnerAlert(n: NotificationRow): Promise<SendResult> {
   const ch = await activeChannel();
   if (ch === 'telegram') {
@@ -57,9 +57,12 @@ export async function sendOwnerAlert(n: NotificationRow): Promise<SendResult> {
         { text: '❌ REJECT', data: `ACT:REJECT:${n.id}` },
         { text: '🔎 VERIFY', data: `ACT:VERIFY:${n.id}` },
       ],
-      [{ text: '📄 Open details page', url: privateLink(n.id) }],
+      [
+        { text: '📄 వివరాలు', url: privateLink(n.id) },
+        { text: '🔗 అధికారిక పేజీ', url: officialLink(n) },
+      ],
     ];
-    return trackedTg(n.id, 'alert', chat, () => tgSendMessage(chat, toPlain(fullAlertText(n)), rows));
+    return trackedTg(n.id, 'alert', chat, () => tgSendMessage(chat, toPlain(shortAlertText(n)), rows));
   }
   if (ch === 'whatsapp') {
     const owner = cfg.owner();

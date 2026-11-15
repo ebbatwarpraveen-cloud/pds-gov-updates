@@ -9,7 +9,15 @@ export const FIELDS = [
 ] as const;
 export type FieldName = (typeof FIELDS)[number];
 
+export const EVENT_TYPES = ['new_recruitment', 'deadline_extension', 'hall_ticket', 'scheme_new', 'scheme_extension', 'other'] as const;
+export type EventType = (typeof EVENT_TYPES)[number];
+
 export interface Extracted {
+  event_type: EventType;
+  notification_no: string;
+  topic_name: string;
+  last_date_iso: string;
+  application_start_iso: string;
   is_official_notification: boolean;
   is_relevant: boolean;
   relevance_reason: string;
@@ -31,7 +39,15 @@ STRICT RULES
    is_relevant = false for: Government Orders (GOs) and general circulars (unless the text itself announces a scheme, benefit, recruitment, exam or an application for citizens - then classify it as that category instead); regulatory or enforcement actions against specific banks, companies or institutions (penalties, licence cancellations, supersession of boards, mergers); tenders, auctions, procurement; individual appointments, transfers, promotions, retirements; court / legal notices; meeting notices, MoUs, speeches, press releases without a citizen action; statistics and reports; navigation or archive pages. "Extension of period" counts only when it extends an application / registration / submission deadline for citizens.
    category: choose the MOST SPECIFIC one. Use government_order, circular, announcement or other only when nothing more specific fits.
 7. Keep each field concise (max ~300 characters; lists separated by "; ").
-8. headline_te: a short natural Telugu headline (max 70 characters) describing the notification. short_summary_en: one plain English sentence.
+8. headline_te: the Telugu NAME of the recruitment or scheme only (post + organisation, max 60 characters), WITHOUT words like notification, hall ticket or extension. short_summary_en: one plain English sentence.
+9. event_type = what THIS document is:
+   new_recruitment = the main notification / advertisement that invites applications for posts (has application dates);
+   deadline_extension = extends or revises the last date / schedule for applications;
+   hall_ticket = hall tickets / admit cards / call letters released or available for download;
+   scheme_new = a scheme, scholarship or citizen-service programme that invites applications;
+   scheme_extension = extends an application deadline of such a scheme;
+   other = EVERYTHING else: check-lists, attestation / declaration / undertaking / certificate formats, certificate-verification lists, results, final keys, response sheets, exam schedules, syllabus, corrigenda, merit lists, interview schedules, general instructions, press notes.
+10. notification_no = the official notification / advertisement number if present (for example "02/OG/PC/2026"), else "${NOT_MENTIONED}". topic_name = short English name of the recruitment or scheme WITHOUT the document type (for example "Assistant Environmental Engineer - Telangana Pollution Control Board"). last_date_iso and application_start_iso = the application last date / start date as YYYY-MM-DD only when clearly written in the text, otherwise an empty string.
 Return the result only through the provided tool.`;
 
 const stringProp = { type: 'string' };
@@ -50,9 +66,14 @@ const tool: Anthropic.Tool = {
       },
       headline_te: stringProp,
       short_summary_en: stringProp,
+      event_type: { type: 'string', enum: [...EVENT_TYPES] },
+      notification_no: stringProp,
+      topic_name: stringProp,
+      last_date_iso: stringProp,
+      application_start_iso: stringProp,
       ...Object.fromEntries(FIELDS.map((f) => [f, stringProp])),
     },
-    required: ['is_official_notification', 'is_relevant', 'relevance_reason', 'category', 'headline_te', 'short_summary_en', ...FIELDS],
+    required: ['is_official_notification', 'is_relevant', 'relevance_reason', 'category', 'headline_te', 'short_summary_en', 'event_type', 'notification_no', 'topic_name', 'last_date_iso', 'application_start_iso', ...FIELDS],
   },
 };
 
@@ -144,12 +165,17 @@ function geminiSchema() {
     },
     headline_te: { type: 'STRING' },
     short_summary_en: { type: 'STRING' },
+    event_type: { type: 'STRING', enum: [...EVENT_TYPES] },
+    notification_no: { type: 'STRING' },
+    topic_name: { type: 'STRING' },
+    last_date_iso: { type: 'STRING' },
+    application_start_iso: { type: 'STRING' },
   };
   for (const f of FIELDS) props[f] = { type: 'STRING' };
   return {
     type: 'OBJECT',
     properties: props,
-    required: ['is_official_notification', 'is_relevant', 'relevance_reason', 'category', 'headline_te', 'short_summary_en', ...FIELDS],
+    required: ['is_official_notification', 'is_relevant', 'relevance_reason', 'category', 'headline_te', 'short_summary_en', 'event_type', 'notification_no', 'topic_name', 'last_date_iso', 'application_start_iso', ...FIELDS],
   };
 }
 
@@ -286,6 +312,8 @@ ${linkList || '(none)'}`;
   return normalizeExtraction(block.input);
 }
 
+const isoOrEmpty = (v: unknown) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v.trim()) ? v.trim() : '');
+
 export function normalizeExtraction(raw: any): Extracted {
   const fields = {} as Record<FieldName, string>;
   for (const f of FIELDS) {
@@ -293,7 +321,13 @@ export function normalizeExtraction(raw: any): Extracted {
     const s = typeof v === 'string' ? v.trim() : '';
     fields[f] = !s || /^(n\/?a|none|not (available|specified|mentioned|found)|nil|-+)$/i.test(s) ? NOT_MENTIONED : s;
   }
+  const no = typeof raw?.notification_no === 'string' ? raw.notification_no.trim() : '';
   return {
+    event_type: (EVENT_TYPES as readonly string[]).includes(raw?.event_type) ? raw.event_type : 'other',
+    notification_no: !no || /^(n\/?a|none|nil|-+)$/i.test(no) || /not mentioned/i.test(no) ? '' : no.slice(0, 60),
+    topic_name: String(raw?.topic_name ?? '').trim().slice(0, 160),
+    last_date_iso: isoOrEmpty(raw?.last_date_iso),
+    application_start_iso: isoOrEmpty(raw?.application_start_iso),
     is_official_notification: raw?.is_official_notification === true,
     is_relevant: raw?.is_relevant === true,
     relevance_reason: String(raw?.relevance_reason ?? '').slice(0, 300),

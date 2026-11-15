@@ -29,6 +29,27 @@ export function parseAction(text: string): { action: Action | null; id?: number 
   return { action: null };
 }
 
+const STATUS_LABEL: Record<string, string> = {
+  rejected: '❌ REJECTED',
+  accepted: '✅ ACCEPTED',
+  poster_ready: '✅ ACCEPTED',
+  saved: '💾 SAVED',
+  cancelled: '🚫 CANCELLED',
+  archived: '🗄 ARCHIVED',
+};
+export const statusLabel = (status: string) => STATUS_LABEL[status] ?? status;
+
+const DECISION_STATUSES = ['alerted', 'verified', 'alert_failed'];
+
+/** Can this button still be used? (stops "already rejected" messages from stale buttons) */
+export async function peekAction(id: number, action: Action): Promise<{ ok: boolean; status: string; message: string }> {
+  const n = await one<{ status: string }>('SELECT status FROM notifications WHERE id=$1', [id]);
+  if (!n) return { ok: false, status: 'missing', message: `#${id} దొరకలేదు` };
+  const decision = ['ACCEPT', 'REJECT', 'VERIFY'].includes(action);
+  const ok = decision ? DECISION_STATUSES.includes(n.status) : n.status === 'poster_ready';
+  return { ok, status: n.status, message: ok ? '' : `ఇది ఇప్పటికే ${statusLabel(n.status)}` };
+}
+
 export interface ActionResult {
   ok: boolean;
   message: string;
@@ -54,12 +75,12 @@ async function deliverPoster(n: NotificationRow, posterId: number, caption: stri
 }
 
 /** The single place where ACCEPT / REJECT / VERIFY and poster options are applied (WhatsApp or web page). */
-export async function performAction(id: number, action: Action, via: 'whatsapp' | 'telegram' | 'web'): Promise<ActionResult> {
+export async function performAction(id: number, action: Action, via: 'whatsapp' | 'telegram' | 'web', opts: { quiet?: boolean } = {}): Promise<ActionResult> {
   const n = await one<NotificationRow>('SELECT * FROM notifications WHERE id=$1', [id]);
   if (!n) return { ok: false, message: `Notification #${id} not found.` };
   const st = n.status;
   const reply = async (text: string) => {
-    if (via !== 'web') await sendOwnerText(id, 'menu', text);
+    if (via !== 'web' && !opts.quiet) await sendOwnerText(id, 'menu', text);
   };
 
   // --- decision stage ---

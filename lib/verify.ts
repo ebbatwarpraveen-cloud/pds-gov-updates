@@ -93,6 +93,15 @@ export function verifyExtraction(args: {
     }
   }
 
+  // 1b. ISO dates must agree with a date that was found in the text
+  const groundIso = (iso: string, textField: string): string => {
+    if (!iso || textField === NOT_MENTIONED) return '';
+    const [y, m, d] = iso.split('-');
+    return numbers.has(String(parseInt(y, 10))) && numbers.has(String(parseInt(d, 10))) && parseInt(m, 10) >= 1 && parseInt(m, 10) <= 12 ? iso : '';
+  };
+  ex.last_date_iso = groundIso(ex.last_date_iso, ex.fields.last_date);
+  ex.application_start_iso = groundIso(ex.application_start_iso, ex.fields.application_start);
+
   // 2. links must exist on the page / in the text and be official
   const known = new Set(args.pageLinks.map((l) => canonicalUrl(l.href)));
   const textLc = pageText.toLowerCase();

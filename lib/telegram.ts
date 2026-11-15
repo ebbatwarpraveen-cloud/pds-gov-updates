@@ -73,7 +73,11 @@ export async function tgSendPhoto(chatId: string, png: Buffer, caption?: string)
   return call('sendPhoto', form);
 }
 
-export const tgAnswerCallback = (id: string, text?: string) => call('answerCallbackQuery', { callback_query_id: id, text: text?.slice(0, 190) }, 1);
+export const tgAnswerCallback = (id: string, text?: string, alert = false) => call('answerCallbackQuery', { callback_query_id: id, text: text?.slice(0, 190), show_alert: alert || undefined }, 1);
+
+/** Replaces the text of a message and removes its buttons (used to show "REJECTED" / "ACCEPTED" on the same message). */
+export const tgEditText = (chatId: string, messageId: number, text: string) =>
+  call('editMessageText', { chat_id: chatId, message_id: messageId, text: text.slice(0, 4000), disable_web_page_preview: true, reply_markup: { inline_keyboard: [] } }, 1);
 export const tgRemoveKeyboard = (chatId: string, messageId: number) => call('editMessageReplyMarkup', { chat_id: chatId, message_id: messageId, reply_markup: { inline_keyboard: [] } }, 1);
 export const tgGetMe = () => call('getMe', {}, 2);
 export const tgSetWebhook = (url: string, secret: string) =>
@@ -86,17 +90,18 @@ export interface TgUpdate {
   callbackId: string;
   callbackData: string;
   messageId: number;
+  messageText: string;
 }
 
 export function parseTelegramUpdate(body: any): TgUpdate | null {
   if (!body || typeof body !== 'object') return null;
   if (body.callback_query) {
     const c = body.callback_query;
-    return { updateId: Number(body.update_id), chatId: String(c.message?.chat?.id ?? c.from?.id ?? ''), text: '', callbackId: String(c.id ?? ''), callbackData: String(c.data ?? ''), messageId: Number(c.message?.message_id ?? 0) };
+    return { updateId: Number(body.update_id), chatId: String(c.message?.chat?.id ?? c.from?.id ?? ''), text: '', callbackId: String(c.id ?? ''), callbackData: String(c.data ?? ''), messageId: Number(c.message?.message_id ?? 0), messageText: String(c.message?.text ?? '') };
   }
   const m = body.message;
   if (m && typeof m.text === 'string') {
-    return { updateId: Number(body.update_id), chatId: String(m.chat?.id ?? ''), text: m.text.trim(), callbackId: '', callbackData: '', messageId: Number(m.message_id ?? 0) };
+    return { updateId: Number(body.update_id), chatId: String(m.chat?.id ?? ''), text: m.text.trim(), callbackId: '', callbackData: '', messageId: Number(m.message_id ?? 0), messageText: '' };
   }
   return null;
 }

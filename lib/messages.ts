@@ -4,13 +4,27 @@ import { stripLinks, sign, truncate } from './text.js';
 
 export interface NotificationRow {
   id: number;
+  source_id?: string | null;
+  event?: string | null;
+  topic_id?: number | null;
   title: string;
   department: string;
   official_url: string;
   version: number;
   is_update: boolean;
   status: string;
-  data: { fields: Record<FieldName, string>; headline_te?: string; short_summary_en?: string; category?: string; changed?: string[] };
+  data: {
+    fields: Record<FieldName, string>;
+    headline_te?: string;
+    short_summary_en?: string;
+    category?: string;
+    changed?: string[];
+    event?: 'new' | 'extension' | 'hall_ticket';
+    kind?: 'job' | 'scheme';
+    topic_title_te?: string;
+    old_last_date?: string;
+    tag?: string;
+  };
   verification: any;
   verified_at: string | null;
   created_at: string;
@@ -128,3 +142,68 @@ export function buildCaption(n: NotificationRow): string {
 
 export const POSTER_MENU =
   'ఏం చేయాలి? / What next?\n\n1️⃣ SEND TO GROUP\n2️⃣ SAVE\n3️⃣ CANCEL\n4️⃣ REGENERATE\n\nReply with the word (or number).';
+
+/* ------------------------- short Telugu alert ------------------------- */
+
+const TAGS: [RegExp, string][] = [
+  [/^tg-tgpsc/, '🏛 TGPSC'],
+  [/^tg-tgprb/, '👮 TG పోలీస్'],
+  [/^tg-mhsrb/, '🏥 TG వైద్య ఆరోగ్యం'],
+  [/^tg-highcourt/, '⚖️ హైకోర్టు'],
+  [/^tg-tgsrtc/, '🚌 TGSRTC'],
+  [/^tg-sccl/, '⛏ సింగరేణి'],
+  [/^tg-(tgsouthern|tgnorthern)/, '⚡ విద్యుత్'],
+  [/^c-rrb/, '🚆 RRB'],
+  [/^c-railways/, '🚆 రైల్వే'],
+  [/^c-(ibps|rbi|nabard)/, '🏦 బ్యాంకింగ్'],
+  [/^c-ssc/, '🧑‍💼 SSC'],
+  [/^c-upsc/, '🏛 UPSC'],
+  [/^c-(army|navy|iaf|coastguard|bsf|crpf|cisf)/, '🪖 రక్షణ / భద్రత'],
+  [/^c-(indiapost|gds)/, '✉️ పోస్టల్'],
+  [/^c-(nta|neet|jee|cuet|ugcnet)/, '🎓 NTA పరీక్షలు'],
+  [/^c-aiims/, '🏥 AIIMS'],
+  [/^tg-/, '🏛 తెలంగాణ'],
+  [/^c-/, '🇮🇳 కేంద్రం'],
+];
+
+/** Department label shown on the first line, e.g. "🚆 RRB" or "🏦 బ్యాంకింగ్". */
+export function deptTag(sourceId: string | null | undefined, department?: string): string {
+  for (const [re, tag] of TAGS) if (sourceId && re.test(sourceId)) return tag;
+  if (department && department !== NOT_MENTIONED) return '🏛 ' + truncate(department, 28);
+  return '🏛';
+}
+
+const HEADER: Record<string, string> = {
+  new_job: '🆕 కొత్త ఉద్యోగ ప్రకటన',
+  new_scheme: '🆕 కొత్త పథకం / స్కాలర్‌షిప్',
+  extension: '🔄 గడువు పొడిగింపు',
+  hall_ticket: '🎫 హాల్ టికెట్లు విడుదల',
+};
+
+/** Very short, clear Telugu alert (5-6 lines). Full details are behind the "వివరాలు" button. */
+export function shortAlertText(n: NotificationRow): string {
+  const d = n.data;
+  const f = d.fields;
+  const ev = d.event ?? (n.is_update ? 'extension' : 'new');
+  const kind = d.kind ?? 'job';
+  const header = ev === 'new' ? (kind === 'scheme' ? HEADER.new_scheme : HEADER.new_job) : ev === 'extension' ? HEADER.extension : HEADER.hall_ticket;
+  const tag = d.tag || deptTag(n.source_id, f.department);
+  const title = truncate(d.topic_title_te || d.headline_te || f.title, 90);
+  const lines = [`${header} · ${tag}`, title];
+  if (ev === 'new') {
+    if (has(f.vacancies)) lines.push(`👥 ఖాళీలు: ${truncate(f.vacancies, 40)}`);
+    if (has(f.application_start) && has(f.last_date)) lines.push(`📅 దరఖాస్తు: ${truncate(f.application_start, 30)} → ${truncate(f.last_date, 30)}`);
+    else if (has(f.last_date)) lines.push(`📅 చివరి తేదీ: ${truncate(f.last_date, 40)}`);
+    else if (has(f.application_start)) lines.push(`📅 ప్రారంభం: ${truncate(f.application_start, 40)}`);
+  } else if (ev === 'extension') {
+    const newDate = has(f.last_date) ? f.last_date : has(f.deadline_extension) ? f.deadline_extension : has(f.revised_dates) ? f.revised_dates : '';
+    if (newDate) lines.push(`📅 కొత్త చివరి తేదీ: ${truncate(newDate, 40)}${d.old_last_date ? ` (పాతది: ${truncate(d.old_last_date, 30)})` : ''}`);
+  } else if (has(f.exam_date)) {
+    lines.push(`📝 పరీక్ష: ${truncate(f.exam_date, 50)}`);
+  }
+  lines.push(`#${n.id}`);
+  return lines.join('\n');
+}
+
+/** The official page / notification (private chat only – never on the public poster). */
+export const officialLink = (n: NotificationRow): string => (n.data.fields.notification_url && n.data.fields.notification_url !== NOT_MENTIONED ? n.data.fields.notification_url : n.official_url);
