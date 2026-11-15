@@ -37,7 +37,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
      VALUES ($1,$2,NULL,$3,$4,$5,'verified',$6,$7,now()) RETURNING id`,
     [
       'demo-' + stamp, 'demo2-' + stamp, fields.title, fields.department, 'https://www.telangana.gov.in/',
-      JSON.stringify({ fields, headline_te: 'తెలంగాణ వైద్య ఆరోగ్య శాఖలో 1,284 పోస్టుల భర్తీ (టెస్ట్)', short_summary_en: 'Test notification', category: 'recruitment', changed: [] }),
+      JSON.stringify({ fields, headline_te: '[TEST] తెలంగాణ వైద్య ఆరోగ్య శాఖలో 1,284 పోస్టుల భర్తీ', short_summary_en: 'Test notification', category: 'recruitment', changed: [], event: 'new', kind: 'job', tag: '🏛 TEST' }),
       JSON.stringify({ official_host: 'www.telangana.gov.in', official_host_ok: true, verified_at: new Date().toISOString(), fetched_via: 'demo', ungrounded_fields: [], verdict: 'pass', reasons: [] }),
     ],
   );

@@ -1,11 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { parseAction, performAction, resolveNotification, type Action } from '../lib/actions.js';
+import { parseAction, peekAction, performAction, resolveNotification, statusLabel, type Action } from '../lib/actions.js';
 import { sendOwnerText, telegramChatId } from '../lib/channel.js';
 import { env } from '../lib/config.js';
 import { q } from '../lib/db.js';
 import { log } from '../lib/log.js';
 import { setSetting } from '../lib/settings.js';
-import { parseTelegramUpdate, tgAnswerCallback, tgRemoveKeyboard, tgSendMessage } from '../lib/telegram.js';
+import { parseTelegramUpdate, tgAnswerCallback, tgEditText, tgSendMessage } from '../lib/telegram.js';
 import { safeEqual, verifySig } from '../lib/text.js';
 
 export const config = { maxDuration: 60 };
@@ -56,11 +56,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         await tgAnswerCallback(u.callbackId);
         return res.status(200).send('ok');
       }
-      await tgAnswerCallback(u.callbackId, '⏳ ' + action.replace('_', ' '));
       const id = parseInt(m[2], 10);
-      const r = await performAction(id, action, 'telegram');
+      const peek = await peekAction(id, action);
+      if (!peek.ok) {
+        // stale button: small pop-up only, and the old message is corrected so it stops confusing
+        await tgAnswerCallback(u.callbackId, peek.message, true);
+        const label = statusLabel(peek.status);
+        if (u.messageId && u.messageText && !u.messageText.startsWith(label)) await tgEditText(u.chatId, u.messageId, `${label}\n${u.messageText}`);
+        return res.status(200).send('ok');
+      }
+      await tgAnswerCallback(u.callbackId, '⏳ ' + action.replace('_', ' '));
+      // REJECT / CANCEL / ACCEPT are shown on the message itself (no extra chat message)
+      const r = await performAction(id, action, 'telegram', { quiet: ['REJECT', 'CANCEL', 'ACCEPT'].includes(action) });
       await log('info', 'telegram', `${action} #${id}`, { ok: r.ok });
-      if (r.ok && action !== 'VERIFY' && action !== 'SEND_TO_GROUP' && u.messageId) await tgRemoveKeyboard(u.chatId, u.messageId);
+      if (!r.ok) {
+        await sendOwnerText(id, 'menu', r.message);
+      } else {
+        const mark: Partial<Record<Action, string>> = { ACCEPT: '✅ ACCEPTED', REJECT: '❌ REJECTED', SAVE: '💾 SAVED', CANCEL: '🚫 CANCELLED' };
+        const line = mark[action];
+        if (line && u.messageId && u.messageText) await tgEditText(u.chatId, u.messageId, `${line}\n${u.messageText}`);
+      }
       return res.status(200).send('ok');
     }
 

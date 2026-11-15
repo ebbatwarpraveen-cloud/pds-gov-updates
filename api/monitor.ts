@@ -4,7 +4,8 @@ import { one, q } from '../lib/db.js';
 import { deny, isAdmin } from '../lib/http.js';
 import { maybeHeartbeat } from '../lib/heartbeat.js';
 import { log } from '../lib/log.js';
-import { alertOwnerError, checkSource, pickSources, processCandidate, recheckRecent, releaseCandidates, retryUnsent, syncSources, type SourceRow } from '../lib/pipeline.js';
+import { ensureSchema } from '../lib/schema.js';
+import { alertOwnerError, archiveOldFormat, checkSource, pickSources, processCandidate, recheckRecent, releaseCandidates, retryUnsent, syncSources, type SourceRow } from '../lib/pipeline.js';
 import type { Candidate } from '../lib/detect.js';
 
 export const config = { maxDuration: 60 };
@@ -20,7 +21,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let fatal = '';
 
   try {
+    await ensureSchema();
     await syncSources();
+    await archiveOldFormat().catch((e) => log('warn', 'archive', String(e)));
     stats.retried = await retryUnsent();
 
     const sources = await pickSources(cfg.sourcesPerRun());
