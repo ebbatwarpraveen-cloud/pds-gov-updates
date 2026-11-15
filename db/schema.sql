@@ -99,3 +99,28 @@ CREATE TABLE IF NOT EXISTS logs (
   created_at    timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS logs_created_idx ON logs(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS settings (
+  key        text PRIMARY KEY,
+  value      text,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- One row per recruitment / scheme: makes sure only 3 alerts are ever sent for it (new, deadline extension, hall ticket)
+CREATE TABLE IF NOT EXISTS topics (
+  id               bigserial PRIMARY KEY,
+  source_id        text,
+  kind             text NOT NULL DEFAULT 'job',
+  notification_no  text,
+  name             text,
+  title_te         text,
+  last_date_iso    text,
+  last_date_text   text,
+  new_alerted_at   timestamptz,
+  hall_ticket_at   timestamptz,
+  extensions       int NOT NULL DEFAULT 0,
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  updated_at       timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS topic_id bigint;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS event text;
