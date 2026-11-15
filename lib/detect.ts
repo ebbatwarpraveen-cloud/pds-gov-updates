@@ -75,3 +75,47 @@ export async function findNewCandidates(
   if (fresh.length > floodLimit()) return { candidates: retries, baselineJustDone: false, flood: fresh.length };
   return { candidates: [...retries, ...fresh], baselineJustDone: false, flood: 0 };
 }
+
+/* ------------------------------------------------------------------ */
+/* One-time back-fill: notifications published BEFORE monitoring started but still open            */
+/* ------------------------------------------------------------------ */
+
+const YEAR_RE = /2026|2025-26|2026-27|2025-2026|2026-2027/;
+const JOB_SCHEME_RE = /recruit|notification|vacanc|advertis|apply|application|posts|walk-in|walk in|engagement|apprentice|scholarship|yojana|scheme|registration|ఉద్యోగ|నోటిఫికేషన్|దరఖాస్తు/;
+const NOT_WANTED_RE = /result|answer key|final key|response sheet|merit list|selection list|cut[- ]?off|syllabus|tender|quotation|auction|corrigendum|hall ticket|admit card|call letter|exam schedule|time table|timetable|check ?list|declaration|undertaking/;
+
+/** Links on a page that could be a currently running application: this year, job / scheme wording, no results or keys. */
+export function pickBackfillLinks(links: PageLink[], max = 10): PageLink[] {
+  const out: PageLink[] = [];
+  const seen = new Set<string>();
+  for (const l of links) {
+    if (out.length >= max) break;
+    if (!isCandidateLink(l)) continue;
+    const hay = (l.text + ' ' + decodeURIComponentSafe(l.href)).toLowerCase();
+    if (!YEAR_RE.test(hay) || !JOB_SCHEME_RE.test(hay) || NOT_WANTED_RE.test(hay)) continue;
+    const h = linkHash(l);
+    if (seen.has(h)) continue;
+    seen.add(h);
+    out.push(l);
+  }
+  return out;
+}
+
+const decodeURIComponentSafe = (s: string) => {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
+};
+
+/** Marks already-remembered links so that the normal monitor processes them again (AI + 3-event policy decides). */
+export async function markForBackfill(sourceId: string, links: PageLink[]): Promise<number> {
+  await ensureSchema();
+  let n = 0;
+  for (const l of links) {
+    const r = await q(`UPDATE seen_links SET retry=true, attempts=0 WHERE source_id=$1 AND link_hash=$2 AND retry=false RETURNING 1`, [sourceId, linkHash(l)]);
+    n += r.length;
+  }
+  return n;
+}
