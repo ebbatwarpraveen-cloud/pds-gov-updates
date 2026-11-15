@@ -1,4 +1,7 @@
 import { q } from './db.js';
+import { ensureSchema } from './schema.js';
+
+export const MAX_ATTEMPTS = 5;
 import type { PageLink } from './fetcher.js';
 import { canonicalUrl, normText, sha1 } from './text.js';
 
@@ -41,6 +44,7 @@ export async function findNewCandidates(
   links: PageLink[],
   baselined: boolean,
 ): Promise<{ candidates: Candidate[]; baselineJustDone: boolean; flood: number }> {
+  await ensureSchema();
   const relevant = links.filter(isCandidateLink);
   const withHash = relevant.map((l) => ({ link: l, hash: linkHash(l) }));
   const uniq = new Map<string, Candidate>();
@@ -48,12 +52,14 @@ export async function findNewCandidates(
   const all = [...uniq.values()];
   if (all.length === 0) return { candidates: [], baselineJustDone: false, flood: 0 };
 
-  const existing = await q<{ link_hash: string }>('SELECT link_hash FROM seen_links WHERE source_id=$1 AND link_hash = ANY($2)', [
+  const existing = await q<{ link_hash: string; retry: boolean; attempts: number }>('SELECT link_hash, retry, attempts FROM seen_links WHERE source_id=$1 AND link_hash = ANY($2)', [
     sourceId,
     all.map((c) => c.hash),
   ]);
   const have = new Set(existing.map((e) => e.link_hash));
+  const retryHashes = new Set(existing.filter((e) => e.retry && e.attempts < MAX_ATTEMPTS).map((e) => e.link_hash));
   const fresh = all.filter((c) => !have.has(c.hash));
+  const retries = all.filter((c) => retryHashes.has(c.hash));
 
   for (const c of fresh) {
     await q('INSERT INTO seen_links(source_id, link_hash, title, url) VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING', [
@@ -66,6 +72,6 @@ export async function findNewCandidates(
   if (!baselined) return { candidates: [], baselineJustDone: true, flood: 0 };
   // Dozens of "new" links at once almost always means the site changed its layout or uses changing URLs.
   // They are remembered silently (no spam, no wasted AI calls) and the owner gets one warning.
-  if (fresh.length > floodLimit()) return { candidates: [], baselineJustDone: false, flood: fresh.length };
-  return { candidates: fresh, baselineJustDone: false, flood: 0 };
+  if (fresh.length > floodLimit()) return { candidates: retries, baselineJustDone: false, flood: fresh.length };
+  return { candidates: [...retries, ...fresh], baselineJustDone: false, flood: 0 };
 }

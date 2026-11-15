@@ -23,5 +23,7 @@ export async function ensureSchema(): Promise<void> {
   await q('CREATE INDEX IF NOT EXISTS topics_source_idx ON topics(source_id)');
   await q('ALTER TABLE notifications ADD COLUMN IF NOT EXISTS topic_id bigint');
   await q('ALTER TABLE notifications ADD COLUMN IF NOT EXISTS event text');
+  await q('ALTER TABLE seen_links ADD COLUMN IF NOT EXISTS attempts int NOT NULL DEFAULT 0');
+  await q('ALTER TABLE seen_links ADD COLUMN IF NOT EXISTS retry boolean NOT NULL DEFAULT false');
   done = true;
 }

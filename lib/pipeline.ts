@@ -55,7 +55,8 @@ export async function pickSources(limit: number): Promise<SourceRow[]> {
 
 /** Links that were detected but not processed (time or per-run limit) are forgotten again, so the next run picks them up. */
 export async function releaseCandidates(items: { s: { id: string }; c: Candidate }[]): Promise<number> {
-  for (const { s, c } of items) await q('DELETE FROM seen_links WHERE source_id=$1 AND link_hash=$2', [s.id, c.hash]);
+  await ensureSchema();
+  for (const { s, c } of items) await q('UPDATE seen_links SET retry=true WHERE source_id=$1 AND link_hash=$2', [s.id, c.hash]);
   return items.length;
 }
 
@@ -129,6 +130,14 @@ async function findExisting(url: string) {
   return one<NotificationRow & { content_hash: string }>('SELECT * FROM notifications WHERE fingerprint=$1 LIMIT 1', [fingerprintUrl(url)]);
 }
 
+async function recordFailedPermanently(source: SourceRow, url: string, title: string, reason: string) {
+  await q(
+    `INSERT INTO notifications(fingerprint, source_id, title, department, official_url, status, data, verified_at)
+     VALUES ($1,$2,$3,$4,$5,'filtered',$6,now()) ON CONFLICT (fingerprint) DO NOTHING`,
+    [fingerprintUrl(url), source.id, title.slice(0, 300), source.department, url, JSON.stringify({ fields: {}, reason })],
+  ).catch(() => undefined);
+}
+
 async function recordFiltered(source: SourceRow, url: string, a: Analysis, reason: string) {
   await q(
     `INSERT INTO notifications(fingerprint, fingerprint2, source_id, title, department, official_url, status, data, verification, verified_at)
@@ -140,11 +149,17 @@ async function recordFiltered(source: SourceRow, url: string, a: Analysis, reaso
 export async function processCandidate(source: SourceRow, cand: Candidate): Promise<Outcome> {
   await ensureSchema();
   const url = cand.link.href;
+  await q('UPDATE seen_links SET retry=false WHERE source_id=$1 AND link_hash=$2', [source.id, cand.hash]);
   const a = await analyze(url, source, cand.link.text);
   if (!a.ok) {
-    // let it be retried in a later run
-    await q('DELETE FROM seen_links WHERE source_id=$1 AND link_hash=$2', [source.id, cand.hash]);
-    await log('warn', 'pipeline', a.error ?? 'analysis failed', { url, source: source.id });
+    // scanned PDFs without text can never be read: give up at once. Other failures are retried up to 5 times.
+    const permanent = /no text layer/i.test(a.error ?? '');
+    if (permanent) {
+      await recordFailedPermanently(source, url, cand.link.text, a.error ?? '');
+    } else {
+      await q('UPDATE seen_links SET retry=true, attempts=attempts+1 WHERE source_id=$1 AND link_hash=$2', [source.id, cand.hash]);
+    }
+    await log('warn', 'pipeline', (a.error ?? 'analysis failed') + (permanent ? ' (given up)' : ''), { url, source: source.id });
     return 'failed';
   }
   const existing = await findExisting(url);
