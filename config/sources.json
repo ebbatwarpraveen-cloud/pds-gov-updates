@@ -801,6 +801,38 @@
       "name": "SAIL",
       "url": "https://sail.co.in/",
       "priority": 3
+    },
+    {
+      "id": "tg-pcb",
+      "government": "Telangana",
+      "department": "Telangana State Pollution Control Board",
+      "name": "TG Pollution Control Board",
+      "url": "https://tspcb.cgg.gov.in/",
+      "priority": 1
+    },
+    {
+      "id": "tg-treirb",
+      "government": "Telangana",
+      "department": "Telangana Residential Educational Institutions Recruitment Board",
+      "name": "TREIRB (Gurukul)",
+      "url": "https://treirb.telangana.gov.in/",
+      "priority": 1
+    },
+    {
+      "id": "tg-genco",
+      "government": "Telangana",
+      "department": "Telangana Power Generation Corporation",
+      "name": "TGGENCO",
+      "url": "https://tggenco.com/",
+      "priority": 2
+    },
+    {
+      "id": "tg-transco",
+      "government": "Telangana",
+      "department": "Transmission Corporation of Telangana",
+      "name": "TGTRANSCO",
+      "url": "https://tstransco.in/",
+      "priority": 2
     }
   ]
 }
