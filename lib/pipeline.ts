@@ -294,3 +294,37 @@ export async function alertOwnerError(message: string): Promise<void> {
 }
 
 export { fullAlertText };
+
+/**
+ * Works through the queue of postponed / back-filled links without re-checking any website.
+ * Each link is claimed first (so a parallel monitor run never handles the same link twice).
+ */
+export async function drainBacklog(budgetMs = 45_000, maxItems = 8): Promise<{ processed: number; left: number; outcomes: Record<string, number> }> {
+  await ensureSchema();
+  const started = Date.now();
+  const outcomes: Record<string, number> = {};
+  let processed = 0;
+  while (processed < maxItems && Date.now() - started < budgetMs - 14_000) {
+    const row = await one<{ source_id: string; link_hash: string; title: string; url: string }>(
+      `SELECT sl.source_id, sl.link_hash, sl.title, sl.url FROM seen_links sl JOIN sources s ON s.id = sl.source_id
+       WHERE sl.retry AND sl.attempts < 5 AND s.active ORDER BY s.priority, sl.first_seen_at LIMIT 1`,
+    );
+    if (!row) break;
+    const claimed = await q('UPDATE seen_links SET retry=false WHERE source_id=$1 AND link_hash=$2 AND retry=true RETURNING 1', [row.source_id, row.link_hash]);
+    if (!claimed.length) continue;
+    const source = await one<SourceRow>('SELECT id, government, department, name, url, priority, baselined FROM sources WHERE id=$1', [row.source_id]);
+    if (!source) continue;
+    let outcome: string;
+    try {
+      outcome = await processCandidate(source, { link: { text: row.title ?? '', href: row.url }, hash: row.link_hash });
+    } catch (e) {
+      outcome = 'crashed';
+      await q('UPDATE seen_links SET retry=true, attempts=attempts+1 WHERE source_id=$1 AND link_hash=$2', [row.source_id, row.link_hash]);
+      await log('error', 'drain', 'candidate crashed', { url: row.url, error: String(e) });
+    }
+    outcomes[outcome] = (outcomes[outcome] ?? 0) + 1;
+    processed++;
+  }
+  const left = (await one<{ c: number }>(`SELECT count(*)::int c FROM seen_links sl JOIN sources s ON s.id=sl.source_id WHERE sl.retry AND sl.attempts<5 AND s.active`))?.c ?? 0;
+  return { processed, left, outcomes };
+}
