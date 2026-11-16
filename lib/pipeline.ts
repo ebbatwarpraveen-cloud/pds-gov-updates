@@ -150,6 +150,9 @@ export async function processCandidate(source: SourceRow, cand: Candidate): Prom
   await ensureSchema();
   const url = cand.link.href;
   await q('UPDATE seen_links SET retry=false WHERE source_id=$1 AND link_hash=$2', [source.id, cand.hash]);
+  // pages we already decided to ignore are not sent to the AI again (saves the free quota)
+  const known = await findExisting(url);
+  if (known && ['filtered', 'rejected', 'cancelled', 'archived'].includes(known.status)) return known.status === 'filtered' ? 'filtered' : 'duplicate';
   const a = await analyze(url, source, cand.link.text);
   if (!a.ok) {
     // scanned PDFs without text can never be read: give up at once. Other failures are retried up to 5 times.
@@ -180,6 +183,25 @@ export async function processCandidate(source: SourceRow, cand: Candidate): Prom
   const sent = await sendAlert(id);
   if (!sent) return 'unsent';
   return dec.event === 'extension' ? 'updated' : 'alerted';
+}
+
+/** One link, at most `ms` milliseconds. On timeout the link is queued again (max 5 attempts) instead of being lost. */
+export async function processCandidateSafe(source: SourceRow, cand: Candidate, ms = 26_000): Promise<Outcome> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<'timeout'>((resolve) => {
+    timer = setTimeout(() => resolve('timeout'), ms);
+  });
+  try {
+    const r = await Promise.race([processCandidate(source, cand), timeout]);
+    if (r === 'timeout') {
+      await q('UPDATE seen_links SET retry=true, attempts=attempts+1 WHERE source_id=$1 AND link_hash=$2', [source.id, cand.hash]);
+      await log('warn', 'pipeline', 'link took too long, queued again', { url: cand.link.href });
+      return 'failed';
+    }
+    return r;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 /** Re-open recent notifications: only a LATER last date (extension) is worth a new alert. */
@@ -304,7 +326,7 @@ export async function drainBacklog(budgetMs = 45_000, maxItems = 8): Promise<{ p
   const started = Date.now();
   const outcomes: Record<string, number> = {};
   let processed = 0;
-  while (processed < maxItems && Date.now() - started < budgetMs - 14_000) {
+  while (processed < maxItems && Date.now() - started < budgetMs - 24_000) {
     const row = await one<{ source_id: string; link_hash: string; title: string; url: string }>(
       `SELECT sl.source_id, sl.link_hash, sl.title, sl.url FROM seen_links sl JOIN sources s ON s.id = sl.source_id
        WHERE sl.retry AND sl.attempts < 5 AND s.active ORDER BY s.priority, sl.first_seen_at LIMIT 1`,
@@ -316,7 +338,7 @@ export async function drainBacklog(budgetMs = 45_000, maxItems = 8): Promise<{ p
     if (!source) continue;
     let outcome: string;
     try {
-      outcome = await processCandidate(source, { link: { text: row.title ?? '', href: row.url }, hash: row.link_hash });
+      outcome = await processCandidateSafe(source, { link: { text: row.title ?? '', href: row.url }, hash: row.link_hash });
     } catch (e) {
       outcome = 'crashed';
       await q('UPDATE seen_links SET retry=true, attempts=attempts+1 WHERE source_id=$1 AND link_hash=$2', [row.source_id, row.link_hash]);
