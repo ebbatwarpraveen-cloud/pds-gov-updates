@@ -5,7 +5,7 @@ import { deny, isAdmin } from '../lib/http.js';
 import { maybeHeartbeat } from '../lib/heartbeat.js';
 import { log } from '../lib/log.js';
 import { ensureSchema } from '../lib/schema.js';
-import { alertOwnerError, archiveOldFormat, checkSource, pickSources, processCandidate, recheckRecent, releaseCandidates, retryUnsent, syncSources, type SourceRow } from '../lib/pipeline.js';
+import { alertOwnerError, archiveOldFormat, checkSource, pickSources, processCandidateSafe, recheckRecent, releaseCandidates, retryUnsent, syncSources, type SourceRow } from '../lib/pipeline.js';
 import type { Candidate } from '../lib/detect.js';
 
 export const config = { maxDuration: 60 };
@@ -49,10 +49,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     let done = 0;
     const limit = cfg.maxCandidates();
-    while (done < queue.length && done < limit && left() >= 8_000) {
+    while (done < queue.length && done < limit && left() >= 22_000) {
       const { s, c } = queue[done++];
       try {
-        const o = await processCandidate(s, c);
+        const o = await processCandidateSafe(s, c);
         if (o === 'alerted') stats.alerted++;
         else if (o === 'updated') stats.updated++;
         else if (o === 'duplicate') stats.duplicate++;
