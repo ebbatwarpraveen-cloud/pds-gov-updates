@@ -20,7 +20,7 @@ export interface NotificationRow {
     category?: string;
     changed?: string[];
     event?: 'new' | 'extension' | 'hall_ticket';
-    kind?: 'job' | 'scheme';
+    kind?: 'job' | 'scheme' | 'exam';
     topic_title_te?: string;
     old_last_date?: string;
     tag?: string;
@@ -160,7 +160,14 @@ const TAGS: [RegExp, string][] = [
   [/^c-upsc/, '🏛 UPSC'],
   [/^c-(army|navy|iaf|coastguard|bsf|crpf|cisf)/, '🪖 రక్షణ / భద్రత'],
   [/^c-(indiapost|gds)/, '✉️ పోస్టల్'],
+  [/^c-aissee/, '🎓 సైనిక్ స్కూల్ (NTA)'],
   [/^c-(nta|neet|jee|cuet|ugcnet)/, '🎓 NTA పరీక్షలు'],
+  [/^tg-tgtet/, '🎓 TG TET'],
+  [/^tg-(eapcet|icet|edcet|lawcet|ecet|pgecet|polycet|dost|tgche)/, '🎓 TG ప్రవేశ పరీక్ష'],
+  [/^c-asrb/, '🌾 ASRB'],
+  [/^c-dsssb/, '🏛 DSSSB (ఢిల్లీ)'],
+  [/^c-scr/, '🚆 దక్షిణ మధ్య రైల్వే'],
+  [/^c-rrc/, '🚆 రైల్వే (RRC)'],
   [/^c-aiims/, '🏥 AIIMS'],
   [/^tg-/, '🏛 తెలంగాణ'],
   [/^c-/, '🇮🇳 కేంద్రం'],
@@ -176,6 +183,7 @@ export function deptTag(sourceId: string | null | undefined, department?: string
 const HEADER: Record<string, string> = {
   new_job: '🆕 కొత్త ఉద్యోగ ప్రకటన',
   new_scheme: '🆕 కొత్త పథకం / స్కాలర్‌షిప్',
+  new_exam: '🆕 కొత్త పరీక్ష / ప్రవేశ ప్రకటన',
   extension: '🔄 గడువు పొడిగింపు',
   hall_ticket: '🎫 హాల్ టికెట్లు విడుదల',
 };
@@ -186,7 +194,7 @@ export function shortAlertText(n: NotificationRow): string {
   const f = d.fields;
   const ev = d.event ?? (n.is_update ? 'extension' : 'new');
   const kind = d.kind ?? 'job';
-  const header = ev === 'new' ? (kind === 'scheme' ? HEADER.new_scheme : HEADER.new_job) : ev === 'extension' ? HEADER.extension : HEADER.hall_ticket;
+  const header = ev === 'new' ? (kind === 'scheme' ? HEADER.new_scheme : kind === 'exam' ? HEADER.new_exam : HEADER.new_job) : ev === 'extension' ? HEADER.extension : HEADER.hall_ticket;
   const tag = d.tag || deptTag(n.source_id, f.department);
   const title = truncate(d.topic_title_te || d.headline_te || f.title, 90);
   const lines = [`${header} · ${tag}`, title];
@@ -195,6 +203,7 @@ export function shortAlertText(n: NotificationRow): string {
     if (has(f.application_start) && has(f.last_date)) lines.push(`📅 దరఖాస్తు: ${truncate(f.application_start, 30)} → ${truncate(f.last_date, 30)}`);
     else if (has(f.last_date)) lines.push(`📅 చివరి తేదీ: ${truncate(f.last_date, 40)}`);
     else if (has(f.application_start)) lines.push(`📅 ప్రారంభం: ${truncate(f.application_start, 40)}`);
+    if (kind === 'exam' && has(f.exam_date)) lines.push(`📝 పరీక్ష: ${truncate(f.exam_date, 50)}`);
   } else if (ev === 'extension') {
     const newDate = has(f.last_date) ? f.last_date : has(f.deadline_extension) ? f.deadline_extension : has(f.revised_dates) ? f.revised_dates : '';
     if (newDate) lines.push(`📅 కొత్త చివరి తేదీ: ${truncate(newDate, 40)}${d.old_last_date ? ` (పాతది: ${truncate(d.old_last_date, 30)})` : ''}`);

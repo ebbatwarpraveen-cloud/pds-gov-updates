@@ -35,14 +35,14 @@ export function similarity(a: string, b: string): number {
 }
 
 /** Finds the recruitment / scheme this document belongs to: same notification number, otherwise a very similar name from the same website. */
-export async function findTopic(sourceId: string, kind: string, notificationNo: string, name: string): Promise<Topic | undefined> {
+export async function findTopic(sourceId: string, _kind: string, notificationNo: string, name: string): Promise<Topic | undefined> {
   const no = normNo(notificationNo);
   if (no) {
-    const byNo = await one<Topic>('SELECT * FROM topics WHERE source_id=$1 AND kind=$2 AND notification_no=$3 ORDER BY id DESC LIMIT 1', [sourceId, kind, no]);
+    const byNo = await one<Topic>('SELECT * FROM topics WHERE source_id=$1 AND notification_no=$2 ORDER BY id DESC LIMIT 1', [sourceId, no]);
     if (byNo) return byNo;
   }
   if (!name) return undefined;
-  const rows = await q<Topic>('SELECT * FROM topics WHERE source_id=$1 AND kind=$2 ORDER BY id DESC LIMIT 400', [sourceId, kind]);
+  const rows = await q<Topic>('SELECT * FROM topics WHERE source_id=$1 ORDER BY id DESC LIMIT 400', [sourceId]);
   let best: Topic | undefined;
   let bestScore = 0;
   for (const t of rows) {

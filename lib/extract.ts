@@ -9,7 +9,7 @@ export const FIELDS = [
 ] as const;
 export type FieldName = (typeof FIELDS)[number];
 
-export const EVENT_TYPES = ['new_recruitment', 'deadline_extension', 'hall_ticket', 'scheme_new', 'scheme_extension', 'other'] as const;
+export const EVENT_TYPES = ['new_recruitment', 'exam_new', 'deadline_extension', 'hall_ticket', 'scheme_new', 'scheme_extension', 'other'] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 
 export interface Extracted {
@@ -42,7 +42,8 @@ STRICT RULES
 8. headline_te: the Telugu NAME of the recruitment or scheme only (post + organisation, max 60 characters), WITHOUT words like notification, hall ticket or extension. short_summary_en: one plain English sentence.
 9. event_type = what THIS document is:
    new_recruitment = the main notification / advertisement that invites applications for posts (has application dates);
-   deadline_extension = extends or revises the last date / schedule for applications;
+   exam_new = the notification / application for an ENTRANCE EXAM, ELIGIBILITY TEST or ADMISSION (for example TET, JEE, NEET, CUET, EAMCET/EAPCET, ICET, POLYCET, AISSEE, university or school admission tests) with application dates;
+   deadline_extension = extends or revises the last date / schedule for applications (jobs, exams or schemes);
    hall_ticket = hall tickets / admit cards / call letters released or available for download;
    scheme_new = a scheme, scholarship or citizen-service programme that invites applications;
    scheme_extension = extends an application deadline of such a scheme;

@@ -9,7 +9,7 @@ const KEYWORDS = [
   'recruit', 'notification', 'vacanc', 'posts', 'jobs', 'career', 'advertisement', 'walk-in', 'walk in', 'apply', 'application',
   'last date', 'extension', 'extended', 'revised', 'corrigendum', 'schedule', 'exam', 'hall ticket', 'admit card', 'result',
   'g.o', 'g.o.', 'go ms', 'go rt', 'government order', 'circular', 'scheme', 'yojana', 'scholarship', 'registration', 'engagement',
-  'apprentice', 'notice', 'press note', 'online application', 'merit list', 'final key', 'answer key', 'counselling', 'counseling',
+  'apprentice', 'bulletin', 'admission', 'entrance', 'eligibility test', 'jee', 'neet', 'cuet', 'aissee', 'notice', 'press note', 'online application', 'merit list', 'final key', 'answer key', 'counselling', 'counseling',
   'ఉద్యోగ', 'నోటిఫికేషన్', 'దరఖాస్తు', 'ఖాళీ', 'పరీక్ష', 'ఫలితాలు', 'జీవో', 'పథకం',
 ];
 const NOISE = [
@@ -80,8 +80,8 @@ export async function findNewCandidates(
 /* One-time back-fill: notifications published BEFORE monitoring started but still open            */
 /* ------------------------------------------------------------------ */
 
-const YEAR_RE = /2026|2025-26|2026-27|2025-2026|2026-2027/;
-const JOB_SCHEME_RE = /recruit|notification|vacanc|advertis|apply|application|posts|walk-in|walk in|engagement|apprentice|scholarship|yojana|scheme|registration|ఉద్యోగ|నోటిఫికేషన్|దరఖాస్తు/;
+const YEAR_RE = /2026|2027|2025-26|2026-27|2027-28/;
+const JOB_SCHEME_RE = /recruit|notification|vacanc|advertis|apply|application|posts|walk-in|walk in|engagement|apprentice|scholarship|yojana|scheme|registration|exam|admission|entrance|eligibility test|\btet\b|\bjee\b|neet|cuet|aissee|bulletin|ఉద్యోగ|నోటిఫికేషన్|దరఖాస్తు/;
 const NOT_WANTED_RE = /result|answer key|final key|response sheet|merit list|selection list|cut[- ]?off|syllabus|tender|quotation|auction|corrigendum|hall ticket|admit card|call letter|exam schedule|time table|timetable|check ?list|declaration|undertaking/;
 
 /** Links on a page that could be a currently running application: this year, job / scheme wording, no results or keys. */

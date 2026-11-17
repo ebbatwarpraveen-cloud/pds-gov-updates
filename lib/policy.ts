@@ -6,7 +6,7 @@ export type AlertEvent = 'new' | 'extension' | 'hall_ticket';
 
 export type Decision =
   | { send: false; reason: string; duplicate?: boolean }
-  | { send: true; event: AlertEvent; kind: 'job' | 'scheme'; topicId: number; topicTitleTe: string; oldLastDate: string };
+  | { send: true; event: AlertEvent; kind: 'job' | 'scheme' | 'exam'; topicId: number; topicTitleTe: string; oldLastDate: string };
 
 /** Today's date in India (YYYY-MM-DD). POLICY_TODAY is only for tests. */
 export function todayIst(now = new Date()): string {
@@ -25,14 +25,15 @@ const has = (v: string) => !!v && v !== NOT_MENTIONED;
 export async function decide(ex: Extracted, source: { id: string }, today = todayIst()): Promise<Decision> {
   const et = ex.event_type;
   if (et === 'other') return { send: false, reason: 'Not a new notification, extension or hall ticket' };
-  const kind: 'job' | 'scheme' = et === 'scheme_new' || et === 'scheme_extension' ? 'scheme' : 'job';
-  if (kind === 'scheme' && env('SCHEMES_ENABLED') === 'false') return { send: false, reason: 'Scheme alerts are switched off' };
+  const asked: 'job' | 'scheme' | 'exam' = et === 'scheme_new' || et === 'scheme_extension' ? 'scheme' : et === 'exam_new' ? 'exam' : 'job';
+  if (asked === 'scheme' && env('SCHEMES_ENABLED') === 'false') return { send: false, reason: 'Scheme alerts are switched off' };
 
   const f = ex.fields;
   const name = ex.topic_name || (has(f.title) ? f.title : '');
   const lastIso = ex.last_date_iso;
   const closed = !!lastIso && lastIso < today;
-  const topic = await findTopic(source.id, kind, ex.notification_no, name);
+  const topic = await findTopic(source.id, asked, ex.notification_no, name);
+  const kind = (topic?.kind as 'job' | 'scheme' | 'exam' | undefined) ?? asked; // follow the kind of the recruitment / exam we already know
   const titleTe = ex.headline_te || '';
 
   // ---------- hall ticket ----------
