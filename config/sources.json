@@ -277,7 +277,8 @@
       "department": "e-Gazette of India",
       "name": "e-Gazette",
       "url": "https://egazette.gov.in/",
-      "priority": 3
+      "priority": 3,
+      "active": false
     },
     {
       "id": "c-army",
@@ -808,7 +809,8 @@
       "department": "Telangana State Pollution Control Board",
       "name": "TG Pollution Control Board",
       "url": "https://tspcb.cgg.gov.in/",
-      "priority": 1
+      "priority": 1,
+      "active": false
     },
     {
       "id": "tg-treirb",
@@ -816,7 +818,8 @@
       "department": "Telangana Residential Educational Institutions Recruitment Board",
       "name": "TREIRB (Gurukul)",
       "url": "https://treirb.telangana.gov.in/",
-      "priority": 1
+      "priority": 1,
+      "active": false
     },
     {
       "id": "tg-genco",
@@ -824,7 +827,8 @@
       "department": "Telangana Power Generation Corporation",
       "name": "TGGENCO",
       "url": "https://tggenco.com/",
-      "priority": 2
+      "priority": 2,
+      "active": false
     },
     {
       "id": "tg-transco",
@@ -834,6 +838,54 @@
       "url": "https://tstransco.in/",
       "priority": 2,
       "active": false
+    },
+    {
+      "id": "tg-tgtet",
+      "government": "Telangana",
+      "department": "Telangana Teacher Eligibility Test (School Education)",
+      "name": "TG TET",
+      "url": "https://tgtet.aptonline.in/tgtet/",
+      "priority": 1
+    },
+    {
+      "id": "c-aissee",
+      "government": "Central",
+      "department": "All India Sainik Schools Entrance Exam (NTA)",
+      "name": "AISSEE",
+      "url": "https://aissee.nta.nic.in/",
+      "priority": 1
+    },
+    {
+      "id": "c-asrb",
+      "government": "Central",
+      "department": "Agricultural Scientists Recruitment Board",
+      "name": "ASRB",
+      "url": "https://www.asrb.org.in/",
+      "priority": 1
+    },
+    {
+      "id": "c-dsssb",
+      "government": "Central",
+      "department": "Delhi Subordinate Services Selection Board",
+      "name": "DSSSB",
+      "url": "https://dsssb.delhi.gov.in/",
+      "priority": 1
+    },
+    {
+      "id": "c-rrcnr",
+      "government": "Central",
+      "department": "Railway Recruitment Cell – Northern Railway (apprentices)",
+      "name": "RRC Northern Railway",
+      "url": "https://www.rrcnr.org/",
+      "priority": 1
+    },
+    {
+      "id": "c-scr",
+      "government": "Central",
+      "department": "South Central Railway (Telangana) – recruitment",
+      "name": "South Central Railway",
+      "url": "https://scr.indianrailways.gov.in/",
+      "priority": 1
     }
   ]
 }
