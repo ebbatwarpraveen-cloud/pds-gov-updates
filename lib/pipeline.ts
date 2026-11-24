@@ -60,6 +60,10 @@ export async function releaseCandidates(items: { s: { id: string }; c: Candidate
   return items.length;
 }
 
+/** True when the last failure was only a temporary AI overload (503 / quota): the queue should pause instead of burning attempts. */
+let lastFailureTransient = false;
+export const wasLastFailureTransient = () => lastFailureTransient;
+
 export type Outcome = 'alerted' | 'updated' | 'duplicate' | 'filtered' | 'failed' | 'unsent';
 
 interface Analysis {
@@ -149,6 +153,7 @@ async function recordFiltered(source: SourceRow, url: string, a: Analysis, reaso
 export async function processCandidate(source: SourceRow, cand: Candidate): Promise<Outcome> {
   await ensureSchema();
   const url = cand.link.href;
+  lastFailureTransient = false;
   await q('UPDATE seen_links SET retry=false WHERE source_id=$1 AND link_hash=$2', [source.id, cand.hash]);
   // pages we already decided to ignore are not sent to the AI again (saves the free quota)
   const known = await findExisting(url);
@@ -157,8 +162,13 @@ export async function processCandidate(source: SourceRow, cand: Candidate): Prom
   if (!a.ok) {
     // scanned PDFs without text can never be read: give up at once. Other failures are retried up to 5 times.
     const permanent = /no text layer/i.test(a.error ?? '');
+    // a busy / rate-limited AI is not the link's fault: keep it queued without using up an attempt
+    const transient = /Gemini HTTP (429|500|502|503|504)|UNAVAILABLE|RESOURCE_EXHAUSTED|high demand/i.test(a.error ?? '');
+    lastFailureTransient = transient;
     if (permanent) {
       await recordFailedPermanently(source, url, cand.link.text, a.error ?? '');
+    } else if (transient) {
+      await q('UPDATE seen_links SET retry=true WHERE source_id=$1 AND link_hash=$2', [source.id, cand.hash]);
     } else {
       await q('UPDATE seen_links SET retry=true, attempts=attempts+1 WHERE source_id=$1 AND link_hash=$2', [source.id, cand.hash]);
     }
@@ -346,6 +356,7 @@ export async function drainBacklog(budgetMs = 45_000, maxItems = 8): Promise<{ p
     }
     outcomes[outcome] = (outcomes[outcome] ?? 0) + 1;
     processed++;
+    if (outcome === 'failed' && lastFailureTransient) break; // AI is busy: stop here, try again on the next call
   }
   const left = (await one<{ c: number }>(`SELECT count(*)::int c FROM seen_links sl JOIN sources s ON s.id=sl.source_id WHERE sl.retry AND sl.attempts<5 AND s.active`))?.c ?? 0;
   return { processed, left, outcomes };
