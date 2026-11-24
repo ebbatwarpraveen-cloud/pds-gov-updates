@@ -844,15 +844,15 @@
       "government": "Telangana",
       "department": "Telangana Teacher Eligibility Test (School Education)",
       "name": "TG TET",
-      "url": "https://tgtet.aptonline.in/tgtet/",
+      "url": "https://tgtet.aptonline.in/",
       "priority": 1
     },
     {
       "id": "c-aissee",
       "government": "Central",
       "department": "All India Sainik Schools Entrance Exam (NTA)",
-      "name": "AISSEE",
-      "url": "https://aissee.nta.nic.in/",
+      "name": "AISSEE (Sainik Schools)",
+      "url": "https://exams.nta.nic.in/sainik-school-society/",
       "priority": 1
     },
     {
